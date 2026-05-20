@@ -1,0 +1,12 @@
+# Workspace-local files
+**/.claude/
+**/.idea/
+
+# Frontend local config
+mobile_app/.env
+mobile_app/*figma_preview.txt
+
+# Backend local artifacts
+projeto-integrador/spring-run*.log
+projeto-integrador/agenda-desktop-link/
+projeto-integrador/*.pdf
