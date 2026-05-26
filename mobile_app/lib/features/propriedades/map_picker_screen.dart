@@ -152,12 +152,12 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   String _formatLat(double v) {
     final dir = v >= 0 ? 'N' : 'S';
-    return '${v.abs().toStringAsFixed(6)}Â° $dir';
+    return '${v.abs().toStringAsFixed(6)}° $dir';
   }
 
   String _formatLng(double v) {
     final dir = v >= 0 ? 'L' : 'O';
-    return '${v.abs().toStringAsFixed(6)}Â° $dir';
+    return '${v.abs().toStringAsFixed(6)}° $dir';
   }
 
   @override
@@ -304,7 +304,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Escolher LocalizaÃ§Ã£o',
+                        'Escolher Localização',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -360,7 +360,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               onChanged: _onSearchChanged,
               textInputAction: TextInputAction.search,
               decoration: const InputDecoration(
-                hintText: 'Buscar cidade, bairro ou endereÃ§o...',
+                hintText: 'Buscar cidade, bairro ou endereço...',
                 hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
                 border: InputBorder.none,
                 isDense: true,
@@ -508,7 +508,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               onPressed: () => Navigator.of(context).pop(_center),
               icon: const Icon(Icons.check, color: Colors.white, size: 18),
               label: const Text(
-                'Confirmar localizaÃ§Ã£o',
+                'Confirmar localização',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,

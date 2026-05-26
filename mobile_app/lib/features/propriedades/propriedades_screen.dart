@@ -54,7 +54,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
         _loading = false;
         _error = ApiError.message(
           e,
-          fallback: 'NÃ£o foi possÃ­vel carregar as propriedades.',
+          fallback: 'Não foi possível carregar as propriedades.',
         );
       });
     }
@@ -91,12 +91,12 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Excluir propriedade'),
         content: Text(
-          'Deseja excluir "${p.nome}"? Esta aÃ§Ã£o nÃ£o pode ser desfeita.',
+          'Deseja excluir "${p.nome}"? Esta ação não pode ser desfeita.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('NÃ£o'),
+            child: const Text('Não'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -112,7 +112,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
       await _load(silent: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Propriedade excluÃ­da com sucesso.')),
+          const SnackBar(content: Text('Propriedade excluída com sucesso.')),
         );
       }
     } catch (e) {
@@ -121,7 +121,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
           context,
           e,
           title: 'Erro ao excluir',
-          fallback: 'NÃ£o foi possÃ­vel excluir a propriedade.',
+          fallback: 'Não foi possível excluir a propriedade.',
         );
       }
     }

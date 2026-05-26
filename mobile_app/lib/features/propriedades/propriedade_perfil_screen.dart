@@ -35,15 +35,15 @@ class PropriedadePerfilScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionLabel('FEIRANTE / RESPONSÃVEL'),
+                  _sectionLabel('FEIRANTE / RESPONSÁVEL'),
                   const SizedBox(height: 8),
                   _infoCard([
                     _InfoRow(
                       icon: Icons.person_outline,
-                      label: 'Nome do ResponsÃ¡vel',
+                      label: 'Nome do Responsável',
                       value: p.nomeProprietario.isNotEmpty
                           ? p.nomeProprietario
-                          : 'â€”',
+                          : '—',
                     ),
                     if (p.telefone != null && p.telefone!.isNotEmpty) ...[
                       _InfoRow(
@@ -59,24 +59,24 @@ class PropriedadePerfilScreen extends StatelessWidget {
                     ],
                   ]),
                   const SizedBox(height: 16),
-                  _sectionLabel('LOCALIZAÃ‡ÃƒO'),
+                  _sectionLabel('LOCALIZAÇÃO'),
                   const SizedBox(height: 8),
                   _infoCard([
                     _InfoRow(
-                      label: 'EndereÃ§o',
+                      label: 'Endereço',
                       value: (p.endereco != null && p.endereco!.isNotEmpty)
                           ? p.endereco!
-                          : 'NÃ£o informado',
+                          : 'Não informado',
                     ),
                     _InfoRow(
-                      label: 'MunicÃ­pio / Estado',
+                      label: 'Município / Estado',
                       value: _municipioEstado(p),
                     ),
                     if (hasGps)
                       _InfoRow(
                         label: 'Coordenadas GPS',
                         value:
-                            'Lat: ${p.latitude!.toStringAsFixed(4)}  Â·  Long: ${p.longitude!.toStringAsFixed(4)}',
+                            'Lat: ${p.latitude!.toStringAsFixed(4)}  ·  Long: ${p.longitude!.toStringAsFixed(4)}',
                       ),
                   ]),
                   if (hasGps) ...[
@@ -95,12 +95,12 @@ class PropriedadePerfilScreen extends StatelessWidget {
                     _InfoRow(
                       label: 'Status',
                       value: p.ativa
-                          ? 'Ativa â€” disponÃ­vel para visitas'
-                          : 'Inativa â€” fora de operaÃ§Ã£o',
+                          ? 'Ativa — disponível para visitas'
+                          : 'Inativa — fora de operação',
                     ),
                     if (p.tipoProducao != null && p.tipoProducao!.isNotEmpty)
                       _InfoRow(
-                        label: 'Tipo de ProduÃ§Ã£o',
+                        label: 'Tipo de Produção',
                         value: p.tipoProducao!,
                       ),
                   ]),
@@ -224,7 +224,7 @@ class PropriedadePerfilScreen extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 6),
                     child: Text(
-                      'Â·',
+                      '·',
                       style: TextStyle(color: Color(0xFFB2E5CC), fontSize: 10),
                     ),
                   ),
@@ -240,7 +240,7 @@ class PropriedadePerfilScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      p.ativa ? 'â— Ativa' : 'â— Inativa',
+                      p.ativa ? '● Ativa' : '● Inativa',
                       style: TextStyle(
                         color: p.ativa
                             ? const Color(0xFF00AE56)
@@ -254,7 +254,7 @@ class PropriedadePerfilScreen extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 6),
                       child: Text(
-                        'Â·',
+                        '·',
                         style: TextStyle(
                           color: Color(0xFFB2E5CC),
                           fontSize: 10,
@@ -299,7 +299,7 @@ class PropriedadePerfilScreen extends StatelessWidget {
             const SizedBox(width: 10),
             const Expanded(
               child: Text(
-                'Ver no mapa â†’',
+                'Ver no mapa →',
                 style: TextStyle(
                   color: Color(0xFF00AE56),
                   fontSize: 13,
@@ -410,14 +410,14 @@ class PropriedadePerfilScreen extends StatelessWidget {
       if (p.municipio != null && p.municipio!.isNotEmpty) p.municipio!,
       if (p.estado != null && p.estado!.isNotEmpty) p.estado!,
     ];
-    return parts.isEmpty ? 'NÃ£o informado' : parts.join(' â€” ');
+    return parts.isEmpty ? 'Não informado' : parts.join(' — ');
   }
 
   String _formatDate(DateTime date) {
     const months = [
       'Janeiro',
       'Fevereiro',
-      'MarÃ§o',
+      'Março',
       'Abril',
       'Maio',
       'Junho',

@@ -226,7 +226,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                   ),
                 ),
                 title: const Text('Tirar foto'),
-                subtitle: const Text('Usar a cÃ¢mera do dispositivo'),
+                subtitle: const Text('Usar a câmera do dispositivo'),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

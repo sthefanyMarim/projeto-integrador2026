@@ -313,7 +313,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'CalendÃ¡rio de Visitas',
+                'Calendário de Visitas',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
@@ -338,7 +338,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
   static const _months = [
     'Janeiro',
     'Fevereiro',
-    'MarÃ§o',
+    'Março',
     'Abril',
     'Maio',
     'Junho',

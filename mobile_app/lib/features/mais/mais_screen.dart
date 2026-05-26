@@ -48,7 +48,7 @@ class MaisScreen extends StatelessWidget {
                         iconBg: const Color(0xFFFAEBE8),
                         iconColor: AppColors.error,
                         title: 'Sair',
-                        subtitle: 'Encerrar sessÃ£o',
+                        subtitle: 'Encerrar sessão',
                         titleColor: AppColors.error,
                         onTap: () => _logout(context),
                       ),
@@ -82,7 +82,7 @@ class MaisScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Mais OpÃ§Ãµes',
+                'Mais Opções',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
@@ -92,7 +92,7 @@ class MaisScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 isAdmin
-                    ? 'Gerencie usuÃ¡rios, propriedades e relatÃ³rios'
+                    ? 'Gerencie usuários, propriedades e relatórios'
                     : 'Acesse todas as funcionalidades',
                 style: const TextStyle(
                   color: AppColors.headerSubtitle,

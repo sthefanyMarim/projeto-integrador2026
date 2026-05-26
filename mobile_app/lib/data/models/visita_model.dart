@@ -51,7 +51,7 @@ class VisitaModel {
   String get urgenciaLabel => _enumLabel(urgencia);
   String get statusLabel => switch (statusVisita) {
     'AGENDADA' => 'Pendente',
-    'CONCLUIDA' => 'ConcluÃ­da',
+    'CONCLUIDA' => 'Concluída',
     'CANCELADA' => 'Cancelada',
     'ATRASADA' => 'Atrasada',
     _ => _enumLabel(statusVisita),

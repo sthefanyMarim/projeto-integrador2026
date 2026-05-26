@@ -30,18 +30,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const _weekdays = [
     'Segunda',
-    'TerÃ§a',
+    'Terça',
     'Quarta',
     'Quinta',
     'Sexta',
-    'SÃ¡bado',
+    'Sábado',
     'Domingo',
   ];
 
   static const _months = [
     'Janeiro',
     'Fevereiro',
-    'MarÃ§o',
+    'Março',
     'Abril',
     'Maio',
     'Junho',
@@ -148,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
         _error = ApiError.message(
           error,
-          fallback: 'NÃ£o foi possÃ­vel carregar o dashboard.',
+          fallback: 'Não foi possível carregar o dashboard.',
         );
       });
     }
@@ -232,13 +232,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ...dashboard.visitasHoje.map(_buildVisitCard),
                   const SizedBox(height: 24),
                   _buildSectionHeader(
-                    'PendÃªncias Urgentes',
+                    'Pendências Urgentes',
                     'Ver todas',
                     onTap: () => context.go('/encaminhamentos'),
                   ),
                   const SizedBox(height: 12),
                   if (dashboard.pendenciasUrgentesLista.isEmpty)
-                    _buildEmptyCard('Nenhuma pendÃªncia urgente no momento.')
+                    _buildEmptyCard('Nenhuma pendência urgente no momento.')
                   else
                     ...dashboard.pendenciasUrgentesLista.map(_buildPendingCard),
                   const SizedBox(height: 24),
@@ -503,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Text(
-                      'TÃ©cnico/Bolsista',
+                      'Técnico/Bolsista',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -529,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                'OlÃ¡, ${dashboard.nomeUsuario}',
+                'Olá, ${dashboard.nomeUsuario}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -593,7 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       _MetricCardData(
         value: '${dashboard.pendenciasUrgentes}',
-        label: 'PendÃªncias',
+        label: 'Pendências',
         color: AppColors.warning,
       ),
     ];
@@ -802,7 +802,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       data.responsavel!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'ResponsÃ¡vel: ${data.responsavel}',
+                      'Responsável: ${data.responsavel}',
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,

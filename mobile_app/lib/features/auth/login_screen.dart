@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           error,
           title: 'Falha no login',
-          fallback: 'NÃ£o foi possÃ­vel entrar agora.',
+          fallback: 'Não foi possível entrar agora.',
         );
       }
     } catch (error) {
@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('ðŸŒ¿', style: TextStyle(fontSize: 34)),
+                  child: Text('🌿', style: TextStyle(fontSize: 34)),
                 ),
               ),
             ),
@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'GestÃ£o de Visitas TÃ©cnicas',
+            'Gestão de Visitas Técnicas',
             style: TextStyle(color: AppColors.headerSubtitle, fontSize: 14),
           ),
         ],
@@ -181,12 +181,12 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'FaÃ§a login para continuar',
+              'Faça login para continuar',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 28),
             const Text(
-              'MatrÃ­cula',
+              'Matrícula',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -200,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textInputAction: TextInputAction.next,
               decoration: _fieldDecoration(hint: 'Ex: 202412345'),
               validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Informe a matrÃ­cula'
+                  ? 'Informe a matrícula'
                   : null,
             ),
             const SizedBox(height: 20),
@@ -219,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _login(),
               decoration: _fieldDecoration(
-                hint: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
+                hint: '••••••••',
                 suffix: GestureDetector(
                   onTap: () => setState(() => _obscureSenha = !_obscureSenha),
                   child: Padding(
@@ -242,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 48),
             Center(
               child: Text(
-                'v1.0.0 Â· UFSM ColÃ©gio PolitÃ©cnico',
+                'v1.0.0 · UFSM Colégio Politécnico',
                 style: TextStyle(fontSize: 12, color: AppColors.textHint),
               ),
             ),

@@ -43,7 +43,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
   };
 
   String _statusLabel(String status) => switch (status) {
-    'CONCLUIDA' => 'ConcluÃ­da',
+    'CONCLUIDA' => 'Concluída',
     'CANCELADA' => 'Cancelada',
     'ATRASADA' => 'Atrasada',
     _ => 'Pendente',
@@ -91,7 +91,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
   };
 
   String _encStatusLabel(String status) => switch (status) {
-    'CONCLUIDO' => 'ConcluÃ­do',
+    'CONCLUIDO' => 'Concluído',
     'VENCIDO' => 'Vencido',
     _ => 'Pendente',
   };
@@ -195,7 +195,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
           ),
           const SizedBox(height: 6),
           Text(
-            '${_formatDate(visit.dataVisita)}  â€¢  ${visit.horaCurta}',
+            '${_formatDate(visit.dataVisita)}  •  ${visit.horaCurta}',
             style: const TextStyle(
               color: AppColors.headerSubtitle,
               fontSize: 13,
@@ -285,9 +285,9 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('Resumo TÃ©cnico', Icons.summarize_outlined),
+          _sectionTitle('Resumo Técnico', Icons.summarize_outlined),
           const SizedBox(height: 14),
-          _infoRow(Icons.person_outline, 'TÃ©cnico', detalhe.usuarioNome),
+          _infoRow(Icons.person_outline, 'Técnico', detalhe.usuarioNome),
           if (detalhe.tipoVisita != null) ...[
             const SizedBox(height: 10),
             _infoRow(
@@ -312,7 +312,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
           if (detalhe.observacoes != null &&
               detalhe.observacoes!.isNotEmpty) ...[
             const SizedBox(height: 14),
-            _label('ObservaÃ§Ãµes gerais'),
+            _label('Observações gerais'),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
@@ -345,7 +345,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
             children: [
               Expanded(
                 child: _sectionTitle(
-                  'DiagnÃ³sticos',
+                  'Diagnósticos',
                   Icons.medical_services_outlined,
                 ),
               ),
@@ -356,7 +356,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
             const SizedBox(height: 16),
             const Center(
               child: Text(
-                'Nenhum diagnÃ³stico registrado.',
+                'Nenhum diagnóstico registrado.',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 13),
               ),
             ),
@@ -478,7 +478,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
                                   ),
                                   SizedBox(width: 8),
                                   Text(
-                                    'Imagem indisponÃ­vel',
+                                    'Imagem indisponível',
                                     style: TextStyle(
                                       color: AppColors.textMuted,
                                       fontSize: 12,
@@ -604,7 +604,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
                     const SizedBox(height: 8),
                     _iconRow(
                       Icons.person_outline,
-                      item.responsavel ?? 'ResponsÃ¡vel nÃ£o informado',
+                      item.responsavel ?? 'Responsável não informado',
                     ),
                     const SizedBox(height: 4),
                     _iconRow(Icons.calendar_today_outlined, prazoLabel),

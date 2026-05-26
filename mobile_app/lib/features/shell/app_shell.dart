@@ -20,19 +20,19 @@ class _AppShellState extends State<AppShell> {
       path: '/home',
       icon: Icons.home_outlined,
       activeIcon: Icons.home,
-      label: 'InÃ­cio',
+      label: 'Início',
     ),
     _NavTab(
       path: '/calendario',
       icon: Icons.calendar_month_outlined,
       activeIcon: Icons.calendar_month,
-      label: 'CalendÃ¡rio',
+      label: 'Calendário',
     ),
     _NavTab(
       path: '/encaminhamentos',
       icon: Icons.assignment_outlined,
       activeIcon: Icons.assignment,
-      label: 'PendÃªncias',
+      label: 'Pendências',
     ),
     _NavTab(
       path: '/mais',

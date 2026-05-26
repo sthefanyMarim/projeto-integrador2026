@@ -66,19 +66,19 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
 
   Future<void> _submit() async {
     if (_nomeCtrl.text.trim().isEmpty) {
-      _snack('O nome completo Ã© obrigatÃ³rio.');
+      _snack('O nome completo é obrigatório.');
       return;
     }
     if (_matriculaCtrl.text.trim().isEmpty) {
-      _snack('A matrÃ­cula Ã© obrigatÃ³ria.');
+      _snack('A matrícula é obrigatória.');
       return;
     }
     if (_emailCtrl.text.trim().isEmpty) {
-      _snack('O e-mail Ã© obrigatÃ³rio.');
+      _snack('O e-mail é obrigatório.');
       return;
     }
     if (!widget.isEditing && _senhaCtrl.text.trim().length < 6) {
-      _snack('A senha deve ter no mÃ­nimo 6 caracteres.');
+      _snack('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
 
@@ -112,8 +112,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
       if (mounted) {
         _snack(
           widget.isEditing
-              ? 'UsuÃ¡rio atualizado com sucesso.'
-              : 'UsuÃ¡rio cadastrado com sucesso.',
+              ? 'Usuário atualizado com sucesso.'
+              : 'Usuário cadastrado com sucesso.',
         );
         context.pop(true);
       }
@@ -124,7 +124,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
           context,
           e,
           title: widget.isEditing ? 'Erro ao salvar' : 'Erro ao cadastrar',
-          fallback: 'NÃ£o foi possÃ­vel salvar as informaÃ§Ãµes.',
+          fallback: 'Não foi possível salvar as informações.',
         );
       }
     }
@@ -149,7 +149,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
             const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('CÃ¢mera'),
+              title: const Text('Câmera'),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
@@ -212,7 +212,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                   children: [
                     if (widget.isEditing) ...[
                       Text(
-                        'MatrÃ­cula ${widget.usuario!.matricula}',
+                        'Matrícula ${widget.usuario!.matricula}',
                         style: const TextStyle(
                           color: Color(0xFFA6A6A6),
                           fontSize: 11,
@@ -268,7 +268,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'JPG ou PNG, mÃ¡x 2MB',
+                              'JPG ou PNG, máx 2MB',
                               style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 10,
@@ -284,7 +284,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                     const SizedBox(height: 10),
                     _fieldLabel('Nome Completo *'),
                     const SizedBox(height: 6),
-                    _buildTextField(_nomeCtrl, 'Ex: JoÃ£o da Silva'),
+                    _buildTextField(_nomeCtrl, 'Ex: João da Silva'),
                     const SizedBox(height: 14),
                     _fieldLabel('E-mail'),
                     const SizedBox(height: 6),
@@ -307,7 +307,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 14),
-                    _fieldLabel('MatrÃ­cula *'),
+                    _fieldLabel('Matrícula *'),
                     const SizedBox(height: 6),
                     _buildTextField(
                       _matriculaCtrl,
@@ -322,8 +322,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                       value: 'TECNICO',
                       icon: Icons.person_outline,
                       iconColor: const Color(0xFF5DADE2),
-                      label: 'TÃ©cnico / Bolsista',
-                      description: 'Acessa visitas e relatÃ³rios',
+                      label: 'Técnico / Bolsista',
+                      description: 'Acessa visitas e relatórios',
                     ),
                     const SizedBox(height: 8),
                     _buildRoleCard(
@@ -331,7 +331,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                       icon: Icons.star_outline,
                       iconColor: const Color(0xFF00AE56),
                       label: 'Administrador',
-                      description: 'Acessa gestÃ£o de usuÃ¡rios',
+                      description: 'Acessa gestão de usuários',
                     ),
                     const SizedBox(height: 24),
 
@@ -340,8 +340,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                     _buildTextField(
                       _senhaCtrl,
                       widget.isEditing
-                          ? 'â€¢â€¢â€¢â€¢â€¢â€¢'
-                          : 'MÃ­nimo 6 caracteres',
+                          ? '••••••'
+                          : 'Mínimo 6 caracteres',
                       obscureText: _obscureSenha,
                       suffixIcon: GestureDetector(
                         onTap: () =>
@@ -405,8 +405,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     _ativo
-                                        ? 'UsuÃ¡rio pode fazer login no sistema'
-                                        : 'UsuÃ¡rio estÃ¡ bloqueado',
+                                        ? 'Usuário pode fazer login no sistema'
+                                        : 'Usuário está bloqueado',
                                     style: const TextStyle(
                                       color: Color(0xFFA6A6A6),
                                       fontSize: 11,
@@ -590,7 +590,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.isEditing ? 'Editar UsuÃ¡rio' : 'Novo UsuÃ¡rio',
+                    widget.isEditing ? 'Editar Usuário' : 'Novo Usuário',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -599,8 +599,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                   ),
                   Text(
                     widget.isEditing
-                        ? 'Altere os dados do tÃ©cnico ou bolsista'
-                        : 'Cadastre um novo tÃ©cnico ou administrador',
+                        ? 'Altere os dados do técnico ou bolsista'
+                        : 'Cadastre um novo técnico ou administrador',
                     style: const TextStyle(
                       color: Color(0xFFCCF2D9),
                       fontSize: 11,
@@ -675,7 +675,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                         ),
                       )
                     : Text(
-                        widget.isEditing ? 'Salvar AlteraÃ§Ãµes' : 'Cadastrar',
+                        widget.isEditing ? 'Salvar Alterações' : 'Cadastrar',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,

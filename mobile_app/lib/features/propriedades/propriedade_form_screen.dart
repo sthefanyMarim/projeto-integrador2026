@@ -70,14 +70,14 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     if (_nomeProprietarioCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('O nome do responsÃ¡vel Ã© obrigatÃ³rio.'),
+          content: Text('O nome do responsável é obrigatório.'),
         ),
       );
       return;
     }
     if (_nomeCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('O nome da propriedade Ã© obrigatÃ³rio.')),
+        const SnackBar(content: Text('O nome da propriedade é obrigatório.')),
       );
       return;
     }
@@ -136,7 +136,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
           context,
           e,
           title: widget.isEditing ? 'Erro ao salvar' : 'Erro ao cadastrar',
-          fallback: 'NÃ£o foi possÃ­vel salvar as informaÃ§Ãµes.',
+          fallback: 'Não foi possível salvar as informações.',
         );
       }
     }
@@ -211,11 +211,11 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     ],
                     _sectionLabel('DADOS DO FEIRANTE'),
                     const SizedBox(height: 8),
-                    _fieldLabel('Nome do ResponsÃ¡vel *'),
+                    _fieldLabel('Nome do Responsável *'),
                     const SizedBox(height: 6),
                     _buildTextField(
                       _nomeProprietarioCtrl,
-                      'Ex: JoÃ£o da Silva',
+                      'Ex: João da Silva',
                     ),
                     const SizedBox(height: 16),
                     _fieldLabel('Telefone de Contato'),
@@ -230,9 +230,9 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     const SizedBox(height: 8),
                     _fieldLabel('Nome da Propriedade *'),
                     const SizedBox(height: 6),
-                    _buildTextField(_nomeCtrl, 'Ex: SÃ­tio Santa Rosa'),
+                    _buildTextField(_nomeCtrl, 'Ex: Sítio Santa Rosa'),
                     const SizedBox(height: 16),
-                    _fieldLabel('EndereÃ§o / LocalizaÃ§Ã£o'),
+                    _fieldLabel('Endereço / Localização'),
                     const SizedBox(height: 6),
                     _buildTextField(_enderecoCtrl, 'Estrada Municipal, km 12'),
                     const SizedBox(height: 16),
@@ -243,7 +243,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _fieldLabel('MunicÃ­pio'),
+                              _fieldLabel('Município'),
                               const SizedBox(height: 6),
                               _buildTextField(_municipioCtrl, 'Santa Maria'),
                             ],
@@ -270,14 +270,14 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _fieldLabel('Tipo de ProduÃ§Ã£o'),
+                    _fieldLabel('Tipo de Produção'),
                     const SizedBox(height: 6),
                     _buildTextField(
                       _tipoProducaoCtrl,
-                      'Ex: OrgÃ¢nico, Convencional, AgroecolÃ³gico...',
+                      'Ex: Orgânico, Convencional, Agroecológico...',
                     ),
                     const SizedBox(height: 24),
-                    _sectionLabel('LOCALIZAÃ‡ÃƒO GPS (OPCIONAL)'),
+                    _sectionLabel('LOCALIZAÇÃO GPS (OPCIONAL)'),
                     const SizedBox(height: 8),
                     _buildGpsRow(context),
                     const SizedBox(height: 24),
@@ -316,8 +316,8 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   widget.isEditing
-                                      ? 'TÃ©cnicos podem agendar visitas'
-                                      : 'TÃ©cnicos podem agendar visitas para esta unidade',
+                                      ? 'Técnicos podem agendar visitas'
+                                      : 'Técnicos podem agendar visitas para esta unidade',
                                   style: const TextStyle(
                                     color: Color(0xFFA6A6A6),
                                     fontSize: 11,
@@ -466,7 +466,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                       )
                     : Text(
                         widget.isEditing
-                            ? 'Salvar AlteraÃ§Ãµes'
+                            ? 'Salvar Alterações'
                             : 'Cadastrar Propriedade',
                         style: const TextStyle(
                           color: Colors.white,
@@ -577,7 +577,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    hasCoords ? 'LocalizaÃ§Ã£o definida' : 'Escolher no mapa',
+                    hasCoords ? 'Localização definida' : 'Escolher no mapa',
                     style: const TextStyle(
                       color: Color(0xFF111111),
                       fontSize: 13,

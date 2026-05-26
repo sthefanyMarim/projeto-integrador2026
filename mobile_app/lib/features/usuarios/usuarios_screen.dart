@@ -17,7 +17,7 @@ class UsuariosScreen extends StatefulWidget {
 }
 
 class _UsuariosScreenState extends State<UsuariosScreen> {
-  static const _filters = ['Todos', 'TÃ©cnicos', 'Admins'];
+  static const _filters = ['Todos', 'Técnicos', 'Admins'];
 
   late final UsuarioService _service;
   String _selectedFilter = 'Todos';
@@ -54,7 +54,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         _loading = false;
         _error = ApiError.message(
           e,
-          fallback: 'NÃ£o foi possÃ­vel carregar os usuÃ¡rios.',
+          fallback: 'Não foi possível carregar os usuários.',
         );
       });
     }
@@ -62,7 +62,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
 
   List<UsuarioModel> get _filtered {
     var list = _all;
-    if (_selectedFilter == 'TÃ©cnicos') {
+    if (_selectedFilter == 'Técnicos') {
       list = list.where((u) => u.tipo == 'TECNICO').toList();
     } else if (_selectedFilter == 'Admins') {
       list = list.where((u) => u.tipo == 'ADMIN').toList();
@@ -82,7 +82,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
 
   int _count(String filter) {
     if (filter == 'Todos') return _all.length;
-    if (filter == 'TÃ©cnicos') {
+    if (filter == 'Técnicos') {
       return _all.where((u) => u.tipo == 'TECNICO').length;
     }
     return _all.where((u) => u.tipo == 'ADMIN').length;
@@ -92,14 +92,14 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir usuÃ¡rio'),
+        title: const Text('Excluir usuário'),
         content: Text(
-          'Deseja excluir "${u.nome}"? Esta aÃ§Ã£o nÃ£o pode ser desfeita.',
+          'Deseja excluir "${u.nome}"? Esta ação não pode ser desfeita.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('NÃ£o'),
+            child: const Text('Não'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -115,7 +115,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       await _load(silent: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('UsuÃ¡rio excluÃ­do com sucesso.')),
+          const SnackBar(content: Text('Usuário excluído com sucesso.')),
         );
       }
     } catch (e) {
@@ -124,7 +124,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
           context,
           e,
           title: 'Erro ao excluir',
-          fallback: 'NÃ£o foi possÃ­vel excluir o usuÃ¡rio.',
+          fallback: 'Não foi possível excluir o usuário.',
         );
       }
     }
@@ -207,7 +207,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'UsuÃ¡rios',
+                      'Usuários',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -216,7 +216,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     ),
                     if (!_loading)
                       Text(
-                        '${_all.length} usuÃ¡rio${_all.length == 1 ? '' : 's'} cadastrado${_all.length == 1 ? '' : 's'}',
+                        '${_all.length} usuário${_all.length == 1 ? '' : 's'} cadastrado${_all.length == 1 ? '' : 's'}',
                         style: const TextStyle(
                           color: Color(0xFFD9F7E0),
                           fontSize: 12,
@@ -273,7 +273,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       child: TextField(
         onChanged: (v) => setState(() => _search = v),
         decoration: const InputDecoration(
-          hintText: 'Buscar por nome ou matrÃ­cula...',
+          hintText: 'Buscar por nome ou matrícula...',
           hintStyle: TextStyle(color: AppColors.textHint, fontSize: 13),
           prefixIcon: Icon(Icons.search, color: AppColors.textHint, size: 20),
           border: InputBorder.none,
@@ -533,7 +533,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    isTecnico ? 'TÃ©cnico' : 'Admin',
+                    isTecnico ? 'Técnico' : 'Admin',
                     style: TextStyle(
                       color: isTecnico
                           ? const Color(0xFF2980BA)
@@ -656,7 +656,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Text(
-        'Nenhum usuÃ¡rio encontrado.',
+        'Nenhum usuário encontrado.',
         style: TextStyle(color: AppColors.textSecondary),
       ),
     );

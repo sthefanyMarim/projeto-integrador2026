@@ -81,7 +81,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         _loading = false;
         _error = ApiError.message(
           e,
-          fallback: 'NÃ£o foi possÃ­vel carregar o perfil.',
+          fallback: 'Não foi possível carregar o perfil.',
         );
       });
     }
@@ -143,10 +143,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
           _buildHeader(context, u),
           if (_isTecnico) _buildStats(),
           const SizedBox(height: 20),
-          _buildSection(label: 'INFORMAÃ‡Ã•ES', child: _buildInfoCard(u)),
+          _buildSection(label: 'INFORMAÇÕES', child: _buildInfoCard(u)),
           const SizedBox(height: 12),
           _buildSection(
-            label: 'CONFIGURAÃ‡Ã•ES',
+            label: 'CONFIGURAÇÕES',
             child: _buildConfigCard(context, u),
           ),
           const SizedBox(height: 12),
@@ -291,7 +291,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                u.tipo == 'ADMIN' ? 'Administrador' : 'TÃ©cnico / Bolsista',
+                u.tipo == 'ADMIN' ? 'Administrador' : 'Técnico / Bolsista',
                 style: const TextStyle(color: Color(0xFFCCF2D9), fontSize: 13),
               ),
             ],
@@ -325,7 +325,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
           _buildStatDivider(),
           _buildStatItem(_totalVisitas.toString(), 'Visitas'),
           _buildStatDivider(),
-          _buildStatItem(_totalPendencias.toString(), 'PendÃªncias'),
+          _buildStatItem(_totalPendencias.toString(), 'Pendências'),
         ],
       ),
     );
@@ -382,13 +382,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   Widget _buildInfoCard(UsuarioModel u) {
     final rows = <_InfoRow>[
-      _InfoRow(label: 'MatrÃ­cula', value: u.matricula),
+      _InfoRow(label: 'Matrícula', value: u.matricula),
       _InfoRow(label: 'E-mail', value: u.email),
       if (u.telefone != null && u.telefone!.isNotEmpty)
         _InfoRow(label: 'Telefone', value: u.telefone!),
       const _InfoRow(
-        label: 'InstituiÃ§Ã£o',
-        value: 'UFSM â€” ColÃ©gio PolitÃ©cnico',
+        label: 'Instituição',
+        value: 'UFSM — Colégio Politécnico',
       ),
       if (u.criadoEm != null)
         _InfoRow(label: 'Membro desde', value: _formatDate(u.criadoEm!)),
@@ -489,7 +489,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
             icon: Icons.lock_outline,
             iconColor: const Color(0xFF7E57C2),
             title: 'Alterar Senha',
-            subtitle: 'SeguranÃ§a da conta',
+            subtitle: 'Segurança da conta',
             onTap: () => _showAlterarSenhaSheet(context, u.id),
           ),
         ],
@@ -604,7 +604,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Encerrar sessÃ£o atual',
+                      'Encerrar sessão atual',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textMuted,
@@ -640,7 +640,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Sair da conta'),
-        content: const Text('Deseja encerrar a sessÃ£o atual?'),
+        content: const Text('Deseja encerrar a sessão atual?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -663,7 +663,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
     const months = [
       'Janeiro',
       'Fevereiro',
-      'MarÃ§o',
+      'Março',
       'Abril',
       'Maio',
       'Junho',
@@ -736,11 +736,11 @@ class _AlterarSenhaSheetState extends State<_AlterarSenhaSheet> {
 
   Future<void> _submit() async {
     if (_senhaCtrl.text.length < 6) {
-      _snack('A senha deve ter no mÃ­nimo 6 caracteres.');
+      _snack('A senha deve ter no mínimo 6 caracteres.');
       return;
     }
     if (_senhaCtrl.text != _confirmarCtrl.text) {
-      _snack('As senhas nÃ£o coincidem.');
+      _snack('As senhas não coincidem.');
       return;
     }
     setState(() => _loading = true);
@@ -756,7 +756,7 @@ class _AlterarSenhaSheetState extends State<_AlterarSenhaSheet> {
       if (mounted) {
         setState(() => _loading = false);
         _snack(
-          ApiError.message(e, fallback: 'NÃ£o foi possÃ­vel alterar a senha.'),
+          ApiError.message(e, fallback: 'Não foi possível alterar a senha.'),
         );
       }
     }
@@ -802,13 +802,13 @@ class _AlterarSenhaSheetState extends State<_AlterarSenhaSheet> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'SeguranÃ§a da conta',
+            'Segurança da conta',
             style: TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
           const SizedBox(height: 20),
           _fieldLabel('Nova Senha'),
           const SizedBox(height: 6),
-          _buildField(_senhaCtrl, 'MÃ­nimo 6 caracteres', _obscureSenha, () {
+          _buildField(_senhaCtrl, 'Mínimo 6 caracteres', _obscureSenha, () {
             setState(() => _obscureSenha = !_obscureSenha);
           }),
           const SizedBox(height: 14),

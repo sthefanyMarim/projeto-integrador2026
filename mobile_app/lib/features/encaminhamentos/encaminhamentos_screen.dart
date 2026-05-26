@@ -82,7 +82,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
         _loading = false;
         _error = ApiError.message(
           error,
-          fallback: 'NÃ£o foi possÃ­vel carregar os encaminhamentos.',
+          fallback: 'Não foi possível carregar os encaminhamentos.',
         );
       });
     }
@@ -91,7 +91,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
   Future<void> _concluir(EncaminhamentoModel task) async {
     final confirmar = await _confirmDialog(
       'Concluir encaminhamento',
-      'Deseja marcar este encaminhamento como concluÃ­do?',
+      'Deseja marcar este encaminhamento como concluído?',
     );
     if (confirmar != true || !mounted) {
       return;
@@ -104,7 +104,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Encaminhamento concluÃ­do com sucesso.'),
+            content: Text('Encaminhamento concluído com sucesso.'),
           ),
         );
       }
@@ -160,7 +160,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('NÃ£o'),
+              child: const Text('Não'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -257,7 +257,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Acompanhe e finalize as pendÃªncias',
+                'Acompanhe e finalize as pendências',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.headerSubtitle,
                   fontSize: 14,
@@ -487,8 +487,8 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                       const SizedBox(height: 4),
                       Text(
                         task.responsavel == null || task.responsavel!.isEmpty
-                            ? 'ResponsÃ¡vel nÃ£o informado'
-                            : 'ResponsÃ¡vel: ${task.responsavel}',
+                            ? 'Responsável não informado'
+                            : 'Responsável: ${task.responsavel}',
                         style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 12,

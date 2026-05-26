@@ -48,7 +48,7 @@
   String get statusLabel => switch (status) {
     'PENDENTE' => 'Pendente',
     'ATRASADO' => 'Atrasado',
-    'CONCLUIDO' => 'ConcluÃ­do',
+    'CONCLUIDO' => 'Concluído',
     'CANCELADO' => 'Cancelado',
     _ => _enumLabel(status),
   };
