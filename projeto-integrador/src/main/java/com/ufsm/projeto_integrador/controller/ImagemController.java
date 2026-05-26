@@ -3,6 +3,7 @@ package com.ufsm.projeto_integrador.controller;
 import com.ufsm.projeto_integrador.security.SecurityUtils;
 import com.ufsm.projeto_integrador.service.S3Service;
 import com.ufsm.projeto_integrador.service.UsuarioService;
+import com.ufsm.projeto_integrador.service.VisitaTecnicaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class ImagemController {
 
     private final S3Service s3Service;
     private final UsuarioService usuarioService;
+    private final VisitaTecnicaService visitaTecnicaService;
 
     @PostMapping("/perfil")
     @Operation(summary = "Upload da foto de perfil do usuário logado")
@@ -35,6 +37,7 @@ public class ImagemController {
     public ResponseEntity<Map<String, String>> uploadVisita(
             @PathVariable Long visitaId,
             @RequestParam("arquivo") MultipartFile arquivo) {
+        visitaTecnicaService.buscarAutorizada(visitaId);
         String url = s3Service.upload(arquivo, "visitas/" + visitaId);
         return ResponseEntity.ok(Map.of("url", url));
     }

@@ -2,6 +2,7 @@ package com.ufsm.projeto_integrador.controller;
 
 import com.ufsm.projeto_integrador.domain.dto.common.PageResponse;
 import com.ufsm.projeto_integrador.domain.dto.visita.FinalizarVisitaRequest;
+import com.ufsm.projeto_integrador.domain.dto.visita.VisitaDetalheResponse;
 import com.ufsm.projeto_integrador.domain.dto.visita.VisitaRequest;
 import com.ufsm.projeto_integrador.domain.dto.visita.VisitaResponse;
 import com.ufsm.projeto_integrador.domain.enums.StatusVisita;
@@ -46,6 +47,12 @@ public class VisitaTecnicaController {
     @Operation(summary = "Buscar visita por ID")
     public ResponseEntity<VisitaResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
+    }
+
+    @GetMapping("/{id}/detalhes")
+    @Operation(summary = "Buscar detalhes completos de uma visita (diagnósticos e encaminhamentos)")
+    public ResponseEntity<VisitaDetalheResponse> buscarDetalhes(@PathVariable Long id) {
+        return ResponseEntity.ok(service.buscarDetalhes(id));
     }
 
     @PostMapping

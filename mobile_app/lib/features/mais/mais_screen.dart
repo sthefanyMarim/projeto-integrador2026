@@ -11,55 +11,130 @@ class MaisScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppScreen(
-      appBar: AppBar(title: const Text('Mais opções')),
-      padding: EdgeInsets.zero,
-      child: ListView(
-        children: [
+    return FutureBuilder<({String? nome, String? tipo, int? userId})>(
+      future: TokenService().getUserInfo(),
+      builder: (context, snapshot) {
+        final isAdmin = snapshot.data?.tipo == 'ADMIN';
 
-           const SizedBox(height: 16),
-          _buildSection(context, 'GERENCIAMENTO', [
-            _MenuItem(
-              icon: Icons.person_outline,
-              iconBg: AppColors.primarySurface,
-              iconColor: AppColors.primary,
-              title: 'Propriedade/Feirante',
-              subtitle: 'Preferências do sistema',
-              onTap: () {},
-            ),
-            _MenuItem(
-              icon: Icons.logout,
-              iconBg: const Color(0xFFFAEBE8),
-              iconColor: AppColors.error,
-              title: 'Relatório',
-              subtitle: 'Encerrar sessão',
-              titleColor: AppColors.error,
-              onTap: () => _logout(context),
-            ),
-          ]),
-          const SizedBox(height: 16),
-          _buildSection(context, 'CONTA', [
-            _MenuItem(
-              icon: Icons.person_outline,
-              iconBg: AppColors.primarySurface,
-              iconColor: AppColors.primary,
-              title: 'Perfil',
-              subtitle: 'Preferências do sistema',
-              onTap: () {},
-            ),
-            _MenuItem(
-              icon: Icons.logout,
-              iconBg: const Color(0xFFFAEBE8),
-              iconColor: AppColors.error,
-              title: 'Sair',
-              subtitle: 'Encerrar sessão',
-              titleColor: AppColors.error,
-              onTap: () => _logout(context),
-            ),
-          ]),
-        ],
+        return AppScreen(
+          safeAreaTop: false,
+          safeAreaBottom: false,
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(isAdmin: isAdmin),
+              Expanded(
+                child: ListView(
+                  children: [
+                    const SizedBox(height: 16),
+                    _buildSection(
+                      context,
+                      'GERENCIAMENTO',
+                      _managementItems(context, isAdmin: isAdmin),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSection(context, 'CONTA', [
+                      _MenuItem(
+                        icon: Icons.person_outline,
+                        iconBg: AppColors.primarySurface,
+                        iconColor: AppColors.primary,
+                        title: 'Perfil',
+                        subtitle: 'Dados da sua conta',
+                        onTap: () => context.push('/perfil'),
+                      ),
+                      _MenuItem(
+                        icon: Icons.logout,
+                        iconBg: const Color(0xFFFAEBE8),
+                        iconColor: AppColors.error,
+                        title: 'Sair',
+                        subtitle: 'Encerrar sessÃ£o',
+                        titleColor: AppColors.error,
+                        onTap: () => _logout(context),
+                      ),
+                    ]),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader({required bool isAdmin}) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.primaryGradient,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Mais OpÃ§Ãµes',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isAdmin
+                    ? 'Gerencie usuÃ¡rios, propriedades e relatÃ³rios'
+                    : 'Acesse todas as funcionalidades',
+                style: const TextStyle(
+                  color: AppColors.headerSubtitle,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  List<Widget> _managementItems(BuildContext context, {required bool isAdmin}) {
+    return [
+      _MenuItem(
+        icon: Icons.home_work_outlined,
+        iconBg: AppColors.primarySurface,
+        iconColor: AppColors.primary,
+        title: 'Propriedades / Feirantes',
+        subtitle: 'Gerenciar unidades produtoras',
+        onTap: () => context.push('/propriedades'),
+      ),
+      if (isAdmin)
+        _MenuItem(
+          icon: Icons.groups_2_outlined,
+          iconBg: AppColors.infoSurface,
+          iconColor: AppColors.info,
+          title: 'Usuarios',
+          subtitle: 'Gerenciar acessos do sistema',
+          onTap: () => context.push('/usuarios'),
+        ),
+      if (isAdmin)
+        _MenuItem(
+          icon: Icons.assessment_outlined,
+          iconBg: AppColors.warningSurface,
+          iconColor: AppColors.warning,
+          title: 'Relatorios',
+          subtitle: 'Indicadores e historicos',
+          onTap: () => context.push('/relatorios'),
+        ),
+    ];
   }
 
   Widget _buildSection(BuildContext context, String label, List<Widget> items) {
@@ -71,9 +146,9 @@ class MaisScreen extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.grey200,
-                  letterSpacing: 1.2,
-                ),
+              color: AppColors.grey200,
+              letterSpacing: 1.2,
+            ),
           ),
         ),
         ...items,
@@ -138,17 +213,25 @@ class _MenuItem extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               color: titleColor,
                               fontWeight: FontWeight.w600,
                             ),
                       ),
                       const SizedBox(height: 2),
-                      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.grey200, size: 20),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.grey200,
+                  size: 20,
+                ),
               ],
             ),
           ),

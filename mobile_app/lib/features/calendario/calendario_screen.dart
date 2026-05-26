@@ -1,165 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../core/api_error.dart';
+import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_refresh_bus.dart';
 import '../../core/app_screen.dart';
+import '../../data/models/visita_model.dart';
+import '../../data/services/token_service.dart';
+import '../../data/services/visita_service.dart';
+import '../visita/agendamento_modal.dart';
+import '../visita/visita_detalhe_modal.dart';
+import '../visita/visita_form_options.dart';
 import '../visita/visita_tecnica_screen.dart';
-
-// ---------------------------------------------------------------------------
-// Mock data — substituir por chamada de API
-// ---------------------------------------------------------------------------
-
-class _Visita {
-  const _Visita({
-    required this.hora,
-    required this.propriedade,
-    required this.tipo,
-    required this.atrasada,
-  });
-  final String hora;
-  final String propriedade;
-  final String tipo;
-  final bool atrasada;
-}
-
-const _mockVisitas = <int, List<_Visita>>{
-  3: [
-    _Visita(
-      hora: '09:00',
-      propriedade: 'Chácara Leme',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-  ],
-  7: [
-    _Visita(
-      hora: '08:00',
-      propriedade: 'Sítio São João',
-      tipo: 'Rotina',
-      atrasada: true,
-    ),
-    _Visita(
-      hora: '11:00',
-      propriedade: 'Fazenda Monte Verde',
-      tipo: 'Acompanhamento',
-      atrasada: false,
-    ),
-  ],
-  8: [
-    _Visita(
-      hora: '08:30',
-      propriedade: 'Sítio Santa Rosa',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-    _Visita(
-      hora: '10:00',
-      propriedade: 'Chácara Esperança',
-      tipo: 'Acompanhamento',
-      atrasada: true,
-    ),
-    _Visita(
-      hora: '14:00',
-      propriedade: 'Fazenda Bela Vista',
-      tipo: 'Retorno',
-      atrasada: true,
-    ),
-  ],
-  9: [
-    _Visita(
-      hora: '09:30',
-      propriedade: 'Sítio Esperança',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-  ],
-  13: [
-    _Visita(
-      hora: '08:00',
-      propriedade: 'Fazenda Primavera',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-  ],
-  14: [
-    _Visita(
-      hora: '09:00',
-      propriedade: 'Sítio Bom Jesus',
-      tipo: 'Retorno',
-      atrasada: false,
-    ),
-    _Visita(
-      hora: '14:00',
-      propriedade: 'Chácara Verde',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-  ],
-  16: [
-    _Visita(
-      hora: '10:00',
-      propriedade: 'Fazenda Alegre',
-      tipo: 'Acompanhamento',
-      atrasada: false,
-    ),
-  ],
-  20: [
-    _Visita(
-      hora: '08:30',
-      propriedade: 'Sítio Cachoeira',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-    _Visita(
-      hora: '13:00',
-      propriedade: 'Fazenda Nova',
-      tipo: 'Retorno',
-      atrasada: true,
-    ),
-  ],
-  22: [
-    _Visita(
-      hora: '09:00',
-      propriedade: 'Chácara Santa Fé',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-  ],
-  24: [
-    _Visita(
-      hora: '08:00',
-      propriedade: 'Sítio Boa Vista',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-    _Visita(
-      hora: '11:00',
-      propriedade: 'Fazenda Paraíso',
-      tipo: 'Acompanhamento',
-      atrasada: false,
-    ),
-  ],
-  26: [
-    _Visita(
-      hora: '09:30',
-      propriedade: 'Chácara Bonita',
-      tipo: 'Retorno',
-      atrasada: false,
-    ),
-  ],
-  29: [
-    _Visita(
-      hora: '10:00',
-      propriedade: 'Fazenda Bela Vista',
-      tipo: 'Rotina',
-      atrasada: false,
-    ),
-  ],
-};
-
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
 
 class CalendarioScreen extends StatefulWidget {
   const CalendarioScreen({super.key});
@@ -169,10 +22,323 @@ class CalendarioScreen extends StatefulWidget {
 }
 
 class _CalendarioScreenState extends State<CalendarioScreen> {
-  static const _meses = [
+  late final VisitaService _service;
+  late DateTime _focusedDay;
+  late DateTime _selectedDay;
+
+  Map<DateTime, List<VisitaModel>> _eventsByDate = const {};
+  bool _loading = true;
+  bool _runningAction = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final today = DateUtils.dateOnly(DateTime.now());
+    _focusedDay = today;
+    _selectedDay = today;
+    _service = VisitaService(TokenService());
+    AppRefreshBus.notifier.addListener(_handleRefreshBus);
+    _loadVisits();
+  }
+
+  @override
+  void dispose() {
+    AppRefreshBus.notifier.removeListener(_handleRefreshBus);
+    super.dispose();
+  }
+
+  void _handleRefreshBus() {
+    _loadVisits(silent: true);
+  }
+
+  Future<void> _loadVisits({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final visits = await _service.listar(size: 500);
+      visits.sort(_compareVisits);
+
+      final grouped = <DateTime, List<VisitaModel>>{};
+      for (final visit in visits) {
+        final dateKey = DateUtils.dateOnly(visit.dataVisita);
+        grouped.putIfAbsent(dateKey, () => <VisitaModel>[]).add(visit);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _eventsByDate = grouped;
+        _loading = false;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loading = false;
+        _error = ApiError.message(
+          error,
+          fallback: 'Nao foi possivel carregar as visitas.',
+        );
+      });
+      if (!silent && mounted) {
+        await ApiErrorDialog.show(
+          context,
+          error,
+          title: 'Erro ao carregar visitas',
+          fallback: 'Nao foi possivel carregar as visitas.',
+        );
+      }
+    }
+  }
+
+  int _compareVisits(VisitaModel a, VisitaModel b) {
+    final dateCompare = DateUtils.dateOnly(
+      a.dataVisita,
+    ).compareTo(DateUtils.dateOnly(b.dataVisita));
+    if (dateCompare != 0) {
+      return dateCompare;
+    }
+
+    return a.horaVisita.compareTo(b.horaVisita);
+  }
+
+  List<VisitaModel> _eventsForDay(DateTime day) {
+    return _eventsByDate[DateUtils.dateOnly(day)] ?? const [];
+  }
+
+  List<VisitaModel> get _selectedDayVisits => _eventsForDay(_selectedDay);
+
+  String _formatDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day/$month/${value.year}';
+  }
+
+  Color _statusColor(VisitaModel visit) {
+    return switch (visit.statusVisita) {
+      'CONCLUIDA' => AppColors.success,
+      'CANCELADA' => AppColors.textMuted,
+      'ATRASADA' => AppColors.error,
+      _ => AppColors.primary,
+    };
+  }
+
+  Color _urgenciaColor(String urgencia) {
+    return switch (urgencia) {
+      'CRITICA' => AppColors.error,
+      'ALTA' => AppColors.warning,
+      'MEDIA' => AppColors.info,
+      _ => AppColors.success,
+    };
+  }
+
+  Future<void> _cancelVisit(VisitaModel visit) async {
+    final confirmed = await _confirmDialog(
+      title: 'Cancelar visita',
+      message: 'Deseja cancelar a visita em ${visit.propriedadeNome}?',
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _runningAction = true);
+
+    try {
+      await _service.cancelar(visit.id);
+      AppRefreshBus.notifyChanged();
+      await _loadVisits(silent: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Visita cancelada com sucesso.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        await ApiErrorDialog.show(
+          context,
+          error,
+          title: 'Erro ao cancelar visita',
+          fallback: 'Nao foi possivel cancelar a visita.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _runningAction = false);
+      }
+    }
+  }
+
+  Future<void> _editVisit(VisitaModel visit) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AgendamentoModal(visit: visit),
+    );
+
+    if (changed == true && mounted) {
+      await _loadVisits(silent: true);
+    }
+  }
+
+  Future<void> _openVisit(VisitaModel visit) async {
+    if (visit.podeFinalizar) {
+      final changed = await Navigator.of(context, rootNavigator: true)
+          .push<bool>(
+            MaterialPageRoute(
+              builder: (_) => VisitaTecnicaScreen(visit: visit),
+            ),
+          );
+      if (changed == true && mounted) {
+        await _loadVisits(silent: true);
+      }
+    } else {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => VisitaDetalheModal(visit: visit),
+      );
+    }
+  }
+
+  Future<bool?> _confirmDialog({
+    required String title,
+    required String message,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Voltar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScreen(
+      safeAreaTop: false,
+      safeAreaBottom: false,
+      backgroundColor: AppColors.background,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: _loadVisits,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.only(bottom: 24),
+                    children: [
+                      const SizedBox(height: 12),
+                      _buildCalendar(),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildInfoCard(),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: _buildVisitsSection(),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_runningAction)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.primaryGradient,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'CalendÃ¡rio de Visitas',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${_monthName(_focusedDay.month)} ${_focusedDay.year}',
+                style: const TextStyle(
+                  color: AppColors.headerSubtitle,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const _months = [
     'Janeiro',
     'Fevereiro',
-    'Março',
+    'MarÃ§o',
     'Abril',
     'Maio',
     'Junho',
@@ -184,78 +350,28 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
     'Dezembro',
   ];
 
-  late final Map<DateTime, List<_Visita>> _eventosPorData;
-  late DateTime _mes; // primeiro dia do mês exibido
-  late DateTime _diaSelecionado;
-
-  @override
-  void initState() {
-    super.initState();
-    final hoje = DateTime.now();
-    _mes = DateTime(hoje.year, hoje.month);
-    _diaSelecionado = hoje;
-    _eventosPorData = Map.fromEntries(
-      _mockVisitas.entries.map(
-        (entry) =>
-            MapEntry(DateTime(_mes.year, _mes.month, entry.key), entry.value),
-      ),
-    );
-  }
-
-  List<_Visita> _getEventosDoDia(DateTime dia) {
-    return _eventosPorData[DateTime(dia.year, dia.month, dia.day)] ?? [];
-  }
-
-  List<_Visita> get _visitasDoDia => _getEventosDoDia(_diaSelecionado);
-
-  String get _labelDiaSelecionado {
-    return '${_diaSelecionado.day} de ${_meses[_diaSelecionado.month - 1]}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AppScreen(
-      safeAreaBottom: false,
-      appBar: AppBar(title: const Text('Calendário')),
-      backgroundColor: Colors.white,
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 12),
-            _buildCalendar(),
-            const SizedBox(height: 8),
-            const Divider(height: 1, color: Color(0xFFF0F0F0)),
-            _buildListaVisitas(),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Calendário ───────────────────────────────────────────────────────────
+  String _monthName(int month) => _months[month - 1];
 
   Widget _buildCalendar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: TableCalendar<_Visita>(
-        firstDay: DateTime.utc(2000, 1, 1),
+      child: TableCalendar<VisitaModel>(
+        firstDay: DateTime.utc(2020, 1, 1),
         lastDay: DateTime.utc(2100, 12, 31),
-        focusedDay: _mes,
-        selectedDayPredicate: (day) => isSameDay(day, _diaSelecionado),
-        onDaySelected: (selectedDay, focusedDay) => setState(() {
-          _diaSelecionado = selectedDay;
-          _mes = DateTime(focusedDay.year, focusedDay.month);
-        }),
-        onPageChanged: (focusedDay) => setState(() {
-          _mes = DateTime(focusedDay.year, focusedDay.month);
-        }),
-        eventLoader: _getEventosDoDia,
+        focusedDay: _focusedDay,
+        selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
+        onDaySelected: (selectedDay, focusedDay) {
+          setState(() {
+            _selectedDay = DateUtils.dateOnly(selectedDay);
+            _focusedDay = focusedDay;
+          });
+        },
+        onPageChanged: (focusedDay) {
+          setState(() => _focusedDay = focusedDay);
+        },
+        eventLoader: _eventsForDay,
         calendarFormat: CalendarFormat.month,
-        availableCalendarFormats: const {CalendarFormat.month: 'Mês'},
+        availableCalendarFormats: const {CalendarFormat.month: 'Mes'},
         headerVisible: true,
         headerStyle: const HeaderStyle(
           titleCentered: true,
@@ -291,7 +407,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         ),
         calendarStyle: const CalendarStyle(
           selectedDecoration: BoxDecoration(
-            color: Color(0xFF00AE56),
+            color: AppColors.primary,
             shape: BoxShape.circle,
           ),
           todayDecoration: BoxDecoration(
@@ -299,7 +415,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
             shape: BoxShape.circle,
           ),
           markerDecoration: BoxDecoration(
-            color: Color(0xFF00AE56),
+            color: AppColors.primary,
             shape: BoxShape.circle,
           ),
           markerSize: 5,
@@ -310,19 +426,20 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
             if (events.isEmpty) {
               return const SizedBox.shrink();
             }
+
             return Padding(
               padding: const EdgeInsets.only(top: 36),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   events.length.clamp(1, 3),
-                  (i) => Container(
+                  (index) => Container(
                     width: 5,
                     height: 5,
                     margin: const EdgeInsets.symmetric(horizontal: 1),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isSameDay(date, _diaSelecionado)
+                      color: isSameDay(date, _selectedDay)
                           ? Colors.white
                           : const Color(0xFF00AE56),
                     ),
@@ -338,65 +455,213 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
     );
   }
 
-  // ── Lista de visitas do dia selecionado ──────────────────────────────────
+  Widget _buildInfoCard() {
+    if (_loading) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Carregando visitas agendadas...',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-  Widget _buildListaVisitas() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    if (_error != null) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nao foi possivel atualizar o calendario.',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _loadVisits,
+              child: const Text('Tentar novamente'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final visitsInMonth = _eventsByDate.entries
+        .where(
+          (entry) =>
+              entry.key.year == _focusedDay.year &&
+              entry.key.month == _focusedDay.month,
+        )
+        .fold<int>(0, (total, entry) => total + entry.value.length);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          Text(
-            'Visitas — $_labelDiaSelecionado',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primarySurface,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.event_note_outlined,
+              color: AppColors.primary,
             ),
           ),
-          const SizedBox(height: 12),
-          if (_visitasDoDia.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Text(
-                  'Nenhuma visita neste dia',
-                  style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$visitsInMonth visitas neste mes',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-            )
-          else
-            ...(_visitasDoDia.map((v) => _buildCardVisita(v))),
+                const SizedBox(height: 4),
+                Text(
+                  '${_selectedDayVisits.length} visita(s) em ${_formatDate(_selectedDay)}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  void _abrirVisita(_Visita visita) {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        builder: (_) => VisitaTecnicaScreen(
-          propriedade: visita.propriedade,
-          dataVisita: _diaSelecionado,
-          horario: visita.hora,
-          tipo: visita.tipo,
+  Widget _buildVisitsSection() {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null && _selectedDayVisits.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ),
-      ),
+      );
+    }
+
+    if (_selectedDayVisits.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Column(
+            children: const [
+              Icon(Icons.event_busy_outlined, color: AppColors.textMuted),
+              SizedBox(height: 12),
+              Text(
+                'Nenhuma visita encontrada para este dia.',
+                style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Visitas em ${_formatDate(_selectedDay)}',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ..._selectedDayVisits.map(_buildVisitCard),
+      ],
     );
   }
 
-  Widget _buildCardVisita(_Visita visita) {
-    final cor = visita.atrasada
-        ? const Color(0xFFE74C3C)
-        : const Color(0xFF00AE56);
+  Widget _buildVisitCard(VisitaModel visit) {
+    final statusColor = _statusColor(visit);
+    final urgenciaColor = _urgenciaColor(visit.urgencia);
 
     return GestureDetector(
-      onTap: () => _abrirVisita(visita),
+      onTap: () => _openVisit(visit),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: const [
             BoxShadow(
               color: Color(0x0D000000),
@@ -408,30 +673,27 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Barra lateral colorida
               Container(
                 width: 4,
                 decoration: BoxDecoration(
-                  color: cor,
+                  color: statusColor,
                   borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(14),
+                    left: Radius.circular(16),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              // Hora
               SizedBox(
-                width: 44,
+                width: 52,
                 child: Text(
-                  visita.hora,
+                  visit.horaCurta,
                   style: TextStyle(
-                    color: cor,
+                    color: statusColor,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              // Dados da visita
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -439,51 +701,74 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        visita.propriedade,
+                        visit.propriedadeNome,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        visita.tipo,
+                        optionLabel(
+                          tipoVisitaOptions,
+                          visit.tipoVisita,
+                          fallback: 'Tipo nao informado',
+                        ),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildChip(visit.statusLabel, statusColor),
+                          _buildChip(
+                            optionLabel(urgenciaOptions, visit.urgencia),
+                            urgenciaColor,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-              // Ações
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.cancel_outlined,
-                      size: 20,
-                      color: AppColors.textHint,
+                  if (visit.podeCancelar)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.cancel_outlined,
+                        size: 20,
+                        color: AppColors.textHint,
+                      ),
+                      onPressed: _runningAction
+                          ? null
+                          : () => _cancelVisit(visit),
+                      visualDensity: VisualDensity.compact,
                     ),
-                    onPressed: () {},
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: AppColors.primaryLight,
+                  if (visit.podeEditar)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: AppColors.primaryLight,
+                      ),
+                      onPressed: _runningAction
+                          ? null
+                          : () => _editVisit(visit),
+                      visualDensity: VisualDensity.compact,
                     ),
-                    onPressed: () {},
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(right: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
                     child: Icon(
-                      Icons.chevron_right,
+                      visit.podeFinalizar
+                          ? Icons.chevron_right
+                          : Icons.lock_outline,
                       color: AppColors.textHint,
                       size: 20,
                     ),
@@ -492,6 +777,24 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

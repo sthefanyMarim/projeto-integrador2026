@@ -2,6 +2,7 @@ package com.ufsm.projeto_integrador.service;
 
 import com.ufsm.projeto_integrador.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,14 +15,16 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class S3Service {
 
     private final S3Client s3Client;
 
-    @Value("${aws.s3.bucket-name}") private String bucket;
-    @Value("${aws.s3.region}")      private String region;
-    @Value("${aws.s3.endpoint:}")   private String endpoint;
+    @Value("${aws.s3.bucket-name}")   private String bucket;
+    @Value("${aws.s3.region}")        private String region;
+    @Value("${aws.s3.endpoint:}")     private String endpoint;
+    @Value("${aws.s3.public-url:}")   private String publicUrl;
 
     private static final long MAX_SIZE = 5 * 1024 * 1024;
     private static final List<String> TIPOS = List.of("image/jpeg", "image/png", "image/webp");
@@ -38,6 +41,7 @@ public class S3Service {
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
             return buildUrl(chave);
         } catch (Exception e) {
+            log.error("Erro ao fazer upload para S3 na pasta {}", pasta, e);
             throw new BusinessException("Erro ao fazer upload: " + e.getMessage());
         }
     }
@@ -55,8 +59,11 @@ public class S3Service {
     }
 
     private String buildUrl(String chave) {
-        if (endpoint != null && !endpoint.isBlank())
-            return endpoint + "/" + bucket + "/" + chave;
+        String base = (publicUrl != null && !publicUrl.isBlank()) ? publicUrl
+                    : (endpoint != null && !endpoint.isBlank()) ? endpoint
+                    : null;
+        if (base != null)
+            return base + "/" + bucket + "/" + chave;
         return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + chave;
     }
 

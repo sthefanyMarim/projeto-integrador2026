@@ -1,25 +1,90 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/env.dart';
 import '../core/jwt_utils.dart';
 import '../data/models/auth_model.dart';
+import '../data/models/propriedade_model.dart';
 import '../data/services/token_service.dart';
+import '../features/admin/admin_coming_soon_screen.dart';
+import '../features/perfil/perfil_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/shell/app_shell.dart';
 import '../features/home/home_screen.dart';
 import '../features/calendario/calendario_screen.dart';
 import '../features/encaminhamentos/encaminhamentos_screen.dart';
 import '../features/mais/mais_screen.dart';
+import '../features/propriedades/propriedades_screen.dart';
+import '../features/propriedades/propriedade_perfil_screen.dart';
+import '../features/propriedades/propriedade_form_screen.dart';
+import '../features/usuarios/usuarios_screen.dart';
+import '../features/usuarios/usuario_form_screen.dart';
+import '../data/models/usuario_model.dart';
 
 GoRouter buildRouter(TokenService tokenService) {
   return GoRouter(
     initialLocation: '/home',
     redirect: (context, state) => _validateSession(state, tokenService),
     routes: [
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        path: '/usuarios',
+        builder: (context, state) => const UsuariosScreen(),
+      ),
+      GoRoute(
+        path: '/usuarios/novo',
+        builder: (context, state) => const UsuarioFormScreen(),
+      ),
+      GoRoute(
+        path: '/usuarios/:id/editar',
+        builder: (context, state) {
+          final usuario = state.extra as UsuarioModel?;
+          return UsuarioFormScreen(usuario: usuario);
+        },
+      ),
+      GoRoute(
+        path: '/relatorios',
+        builder: (context, state) => const AdminComingSoonScreen(
+          title: 'Relatorios',
+          description: 'Acompanhe indicadores, historicos e resultados.',
+          icon: Icons.assessment_outlined,
+        ),
+      ),
+      GoRoute(
+        path: '/perfil',
+        builder: (context, state) => const PerfilScreen(),
+      ),
+      GoRoute(
+        path: '/propriedades',
+        builder: (context, state) => const PropriedadesScreen(),
+      ),
+      GoRoute(
+        path: '/propriedades/novo',
+        builder: (context, state) => const PropriedadeFormScreen(),
+      ),
+      GoRoute(
+        path: '/propriedades/:id',
+        builder: (context, state) {
+          final prop = state.extra as PropriedadeModel?;
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          if (prop != null) return PropriedadePerfilScreen(propriedade: prop);
+          return PropriedadePerfilScreen(
+            propriedade: PropriedadeModel(
+              id: id ?? 0,
+              nome: '...',
+              nomeProprietario: '',
+              ativa: true,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/propriedades/:id/editar',
+        builder: (context, state) {
+          final prop = state.extra as PropriedadeModel?;
+          return PropriedadeFormScreen(propriedade: prop);
+        },
       ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
@@ -46,7 +111,34 @@ GoRouter buildRouter(TokenService tokenService) {
   );
 }
 
-// ── Validação de sessão ───────────────────────────────────────────────────────
+Future<String?> _redirectByRole(
+  GoRouterState state,
+  TokenService tokenService,
+) async {
+  final userInfo = await tokenService.getUserInfo();
+  final isAdmin = userInfo.tipo == 'ADMIN';
+  final location = state.matchedLocation;
+
+  final tecnicoOnly = ['/calendario', '/encaminhamentos'];
+
+  if (isAdmin && tecnicoOnly.any(location.startsWith)) {
+    return '/home';
+  }
+
+  const adminOnlyExact = ['/usuarios', '/relatorios'];
+  final isAdminOnlyArea = adminOnlyExact.any(
+    (path) =>
+        location == path ||
+        location.startsWith('$path/novo') ||
+        (path == '/relatorios' && location.startsWith(path)),
+  );
+
+  if (!isAdmin && isAdminOnlyArea) {
+    return '/home';
+  }
+
+  return null;
+}
 
 Future<String?> _validateSession(
   GoRouterState state,
@@ -56,20 +148,18 @@ Future<String?> _validateSession(
 
   final accessToken = await tokenService.getAccessToken();
 
-  // Sem token → login
   if (accessToken == null) {
     return isLogin ? null : '/login';
   }
 
-  // Token válido → não bloquear
   if (!JwtUtils.isExpired(accessToken)) {
-    return isLogin ? '/home' : null;
+    if (isLogin) return '/home';
+    return _redirectByRole(state, tokenService);
   }
 
-  // Access token expirado → tentar refresh
   final refreshToken = await tokenService.getRefreshToken();
 
-  if (refreshToken == null || JwtUtils.isExpired(refreshToken)) {
+  if (refreshToken == null || refreshToken.isEmpty) {
     await tokenService.clearTokens();
     return isLogin ? null : '/login';
   }
@@ -84,9 +174,9 @@ Future<String?> _validateSession(
       response.data as Map<String, dynamic>,
     );
     await tokenService.saveTokens(loginResponse);
-    return isLogin ? '/home' : null;
+    if (isLogin) return '/home';
+    return _redirectByRole(state, tokenService);
   } on DioException {
-    // Refresh falhou (token inválido/revogado) → força login
     await tokenService.clearTokens();
     return isLogin ? null : '/login';
   }

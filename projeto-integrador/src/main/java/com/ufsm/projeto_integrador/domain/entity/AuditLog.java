@@ -3,8 +3,11 @@ package com.ufsm.projeto_integrador.domain.entity;
 import com.ufsm.projeto_integrador.domain.enums.AuditAction;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "audit_logs")
@@ -27,11 +30,13 @@ public class AuditLog {
     @Column(nullable = false, length = 10)
     private AuditAction acao;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "dados_antigos", columnDefinition = "jsonb")
-    private String dadosAntigos;
+    private Map<String, Object> dadosAntigos;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "dados_novos", columnDefinition = "jsonb")
-    private String dadosNovos;
+    private Map<String, Object> dadosNovos;
 
     @Column(name = "alterado_por")
     private Long alteradoPor;

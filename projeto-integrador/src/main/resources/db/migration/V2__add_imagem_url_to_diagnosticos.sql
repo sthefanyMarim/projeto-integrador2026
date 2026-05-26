@@ -1,0 +1,1 @@
+ALTER TABLE diagnosticos ADD COLUMN IF NOT EXISTS imagem_url TEXT;

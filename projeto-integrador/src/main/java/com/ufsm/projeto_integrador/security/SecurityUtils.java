@@ -29,23 +29,20 @@ public final class SecurityUtils {
     }
 
     public static boolean isAdmin() {
-        try {
-            return getCurrentUserTipo() == TipoUsuario.ADMIN;
-        } catch (Exception e) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof UserDetailsImpl userDetails)) {
             return false;
         }
+        return userDetails.getTipo() == TipoUsuario.ADMIN;
     }
 
     public static String getCurrentIp() {
-        try {
-            ServletRequestAttributes attrs =
-                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attrs == null) return null;
-            HttpServletRequest req = attrs.getRequest();
-            String forwarded = req.getHeader("X-Forwarded-For");
-            return (forwarded != null) ? forwarded.split(",")[0].trim() : req.getRemoteAddr();
-        } catch (Exception e) {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
             return null;
         }
+
+        HttpServletRequest req = attrs.getRequest();
+        String forwarded = req.getHeader("X-Forwarded-For");
+        return (forwarded != null) ? forwarded.split(",")[0].trim() : req.getRemoteAddr();
     }
 }

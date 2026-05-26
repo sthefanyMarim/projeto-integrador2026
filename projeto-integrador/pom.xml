@@ -12,9 +12,9 @@
     </parent>
 
     <groupId>com.ufsm</groupId>
-    <artifactId>projeto-integrador</artifactId>
+    <artifactId>polivisitas-api</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>polivisitas</name>
+    <name>PoliVisitas API</name>
     <description>PoliVisitas - Gestão de Visitas Técnicas UFSM</description>
 
     <properties>
@@ -69,11 +69,7 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
-        <!-- ── Redis / Cache ───────────────────────────────── -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
+        <!-- Cache local -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>

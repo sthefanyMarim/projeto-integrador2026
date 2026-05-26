@@ -37,22 +37,6 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
-  # ─── Redis ────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: polivisitas-redis
-    restart: unless-stopped
-    command: redis-server --requirepass redis123
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # ─── MinIO (simulador AWS S3) ─────────────────────────────────
   minio:
     image: minio/minio:latest
@@ -92,5 +76,4 @@ services:
 volumes:
   postgres_data:
   pgadmin_data:
-  redis_data:
   minio_data:

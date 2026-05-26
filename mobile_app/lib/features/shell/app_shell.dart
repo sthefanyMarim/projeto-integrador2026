@@ -2,19 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../data/services/token_service.dart';
 import '../visita/agendamento_modal.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
 
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
   static const _tabs = [
-    _NavTab(path: '/home',              icon: Icons.home_outlined,        activeIcon: Icons.home,             label: 'Início'),
-    _NavTab(path: '/calendario',        icon: Icons.calendar_month_outlined, activeIcon: Icons.calendar_month, label: 'Calendário'),
-    _NavTab(path: '/encaminhamentos',   icon: Icons.assignment_outlined,  activeIcon: Icons.assignment,       label: 'Pendências'),
-    _NavTab(path: '/mais',              icon: Icons.more_horiz,           activeIcon: Icons.more_horiz,       label: 'Mais'),
+    _NavTab(
+      path: '/home',
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home,
+      label: 'InÃ­cio',
+    ),
+    _NavTab(
+      path: '/calendario',
+      icon: Icons.calendar_month_outlined,
+      activeIcon: Icons.calendar_month,
+      label: 'CalendÃ¡rio',
+    ),
+    _NavTab(
+      path: '/encaminhamentos',
+      icon: Icons.assignment_outlined,
+      activeIcon: Icons.assignment,
+      label: 'PendÃªncias',
+    ),
+    _NavTab(
+      path: '/mais',
+      icon: Icons.more_horiz,
+      activeIcon: Icons.more_horiz,
+      label: 'Mais',
+    ),
   ];
+
+  bool? _isAdmin;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final userInfo = await TokenService().getUserInfo();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isAdmin = userInfo.tipo == 'ADMIN');
+  }
 
   int _indexFromLocation(String location) {
     if (location.startsWith('/calendario')) return 1;
@@ -38,11 +80,15 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isAdmin == true || _isAdmin == null) {
+      return Scaffold(body: widget.child);
+    }
+
     final location = GoRouterState.of(context).matchedLocation;
     final selectedIndex = _indexFromLocation(location);
 
     return Scaffold(
-      body: child,
+      body: widget.child,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: _Fab(onTap: () => _onFabTap(context)),
       bottomNavigationBar: _NavBar(
@@ -53,8 +99,6 @@ class AppShell extends StatelessWidget {
     );
   }
 }
-
-// ── FAB ──────────────────────────────────────────────────────────────────────
 
 class _Fab extends StatelessWidget {
   const _Fab({required this.onTap});
@@ -92,8 +136,6 @@ class _Fab extends StatelessWidget {
   }
 }
 
-// ── Navbar ────────────────────────────────────────────────────────────────────
-
 class _NavBar extends StatelessWidget {
   const _NavBar({
     required this.selectedIndex,
@@ -127,14 +169,35 @@ class _NavBar extends StatelessWidget {
             height: 72,
             child: Row(
               children: [
-                // 2 itens à esquerda
-                Expanded(child: _NavItem(tab: tabs[0], selected: selectedIndex == 0, onTap: () => onTap(0))),
-                Expanded(child: _NavItem(tab: tabs[1], selected: selectedIndex == 1, onTap: () => onTap(1))),
-                // Espaço central para o FAB
+                Expanded(
+                  child: _NavItem(
+                    tab: tabs[0],
+                    selected: selectedIndex == 0,
+                    onTap: () => onTap(0),
+                  ),
+                ),
+                Expanded(
+                  child: _NavItem(
+                    tab: tabs[1],
+                    selected: selectedIndex == 1,
+                    onTap: () => onTap(1),
+                  ),
+                ),
                 const SizedBox(width: 72),
-                // 2 itens à direita
-                Expanded(child: _NavItem(tab: tabs[2], selected: selectedIndex == 2, onTap: () => onTap(2))),
-                Expanded(child: _NavItem(tab: tabs[3], selected: selectedIndex == 3, onTap: () => onTap(3))),
+                Expanded(
+                  child: _NavItem(
+                    tab: tabs[2],
+                    selected: selectedIndex == 2,
+                    onTap: () => onTap(2),
+                  ),
+                ),
+                Expanded(
+                  child: _NavItem(
+                    tab: tabs[3],
+                    selected: selectedIndex == 3,
+                    onTap: () => onTap(3),
+                  ),
+                ),
               ],
             ),
           ),
@@ -144,8 +207,6 @@ class _NavBar extends StatelessWidget {
     );
   }
 }
-
-// ── Nav item ──────────────────────────────────────────────────────────────────
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
@@ -168,11 +229,7 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            selected ? tab.activeIcon : tab.icon,
-            color: color,
-            size: 22,
-          ),
+          Icon(selected ? tab.activeIcon : tab.icon, color: color, size: 22),
           const SizedBox(height: 4),
           Text(
             tab.label,
@@ -187,8 +244,6 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-
-// ── Model ─────────────────────────────────────────────────────────────────────
 
 class _NavTab {
   const _NavTab({

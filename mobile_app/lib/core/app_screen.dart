@@ -1,16 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// Wrapper padrão para todas as telas do app.
-/// Aplica SafeArea, cor de fundo e Scaffold de forma consistente.
-///
-/// Uso básico:
-/// ```dart
-/// AppScreen(
-///   appBar: AppBar(title: Text('Título')),
-///   child: MeuConteudo(),
-/// )
-/// ```
 class AppScreen extends StatelessWidget {
   const AppScreen({
     super.key,
@@ -32,17 +22,13 @@ class AppScreen extends StatelessWidget {
   final Widget? floatingActionButton;
   final Color? backgroundColor;
 
-  /// Padding padrão aplicado ao conteúdo. Passe EdgeInsets.zero para remover.
   final EdgeInsetsGeometry padding;
 
-  /// Controla se SafeArea protege o topo (status bar). Desative em telas com
-  /// header que deve ir até o topo da tela (ex.: tela de login com gradiente).
   final bool safeAreaTop;
   final bool safeAreaBottom;
 
   final bool resizeToAvoidBottomInset;
 
-  /// Se true, envolve o conteúdo em SingleChildScrollView.
   final bool scrollable;
 
   @override
@@ -64,16 +50,11 @@ class AppScreen extends StatelessWidget {
       bottomNavigationBar: bottomNavigationBar,
       floatingActionButton: floatingActionButton,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-      body: SafeArea(
-        top: safeAreaTop,
-        bottom: safeAreaBottom,
-        child: body,
-      ),
+      body: SafeArea(top: safeAreaTop, bottom: safeAreaBottom, child: body),
     );
   }
 }
 
-/// Versão scrollável pré-configurada — atalho para telas que precisam rolar.
 class AppScrollScreen extends StatelessWidget {
   const AppScrollScreen({
     super.key,

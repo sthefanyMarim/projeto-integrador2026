@@ -4,6 +4,7 @@ import com.ufsm.projeto_integrador.domain.dto.common.PageResponse;
 import com.ufsm.projeto_integrador.domain.dto.usuario.UsuarioRequest;
 import com.ufsm.projeto_integrador.domain.dto.usuario.UsuarioResponse;
 import com.ufsm.projeto_integrador.domain.enums.TipoUsuario;
+import com.ufsm.projeto_integrador.security.SecurityUtils;
 import com.ufsm.projeto_integrador.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +36,12 @@ public class UsuarioController {
         return ResponseEntity.ok(service.listar(busca, tipo, pageable));
     }
 
+    @GetMapping("/me")
+    @Operation(summary = "Dados do usuário autenticado")
+    public ResponseEntity<UsuarioResponse> me() {
+        return ResponseEntity.ok(service.buscarPorId(SecurityUtils.getCurrentUserId()));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Buscar usuário por ID")
@@ -51,7 +58,7 @@ public class UsuarioController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or authentication.principal.id == #id")
     @Operation(summary = "Atualizar dados do usuário")
     public ResponseEntity<UsuarioResponse> atualizar(
             @PathVariable Long id,

@@ -1,120 +1,127 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_refresh_bus.dart';
+import '../../data/models/visita_model.dart';
+import '../../data/services/token_service.dart';
+import '../../data/services/visita_service.dart';
+import 'visita_form_options.dart';
 
-class _EncaminhamentoItem {
-  _EncaminhamentoItem({
-    required this.acao,
-    required this.responsavel,
-    required this.prazo,
-    required this.prioridade,
-  });
-
-  final String acao;
-  final String responsavel;
-  final DateTime? prazo;
-  final String prioridade;
-}
-
-class _DiagnosticoItem {
-  _DiagnosticoItem({
+class _DiagnosticoDraft {
+  const _DiagnosticoDraft({
     required this.categoria,
     required this.criticidade,
     required this.observacoes,
+    this.imagePath,
   });
 
   final String categoria;
   final String criticidade;
   final String observacoes;
+  final String? imagePath;
+}
+
+class _EncaminhamentoDraft {
+  const _EncaminhamentoDraft({
+    required this.acao,
+    required this.prioridade,
+    required this.verificacao,
+    this.responsavel,
+    this.prazo,
+  });
+
+  final String acao;
+  final String prioridade;
+  final String verificacao;
+  final String? responsavel;
+  final DateTime? prazo;
 }
 
 class VisitaTecnicaScreen extends StatefulWidget {
-  const VisitaTecnicaScreen({
-    super.key,
-    required this.propriedade,
-    required this.dataVisita,
-    required this.horario,
-    this.tipo = '',
-  });
+  const VisitaTecnicaScreen({super.key, required this.visit});
 
-  final String propriedade;
-  final DateTime dataVisita;
-  final String horario;
-  final String tipo;
+  final VisitaModel visit;
 
   @override
   State<VisitaTecnicaScreen> createState() => _VisitaTecnicaScreenState();
 }
 
 class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
+  static const double _dropdownMenuMaxHeight = 280;
+
   final _pageController = PageController();
+  final _observacoesGeraisController = TextEditingController();
+  final _diagnosticoFormKey = GlobalKey<FormState>();
+  final _encaminhamentoFormKey = GlobalKey<FormState>();
+  final _diagnosticoObservacoesController = TextEditingController();
+  final _encaminhamentoAcaoController = TextEditingController();
+
+  late final VisitaService _service;
+
   int _step = 0;
+  bool _saving = false;
 
-  final _formKey1 = GlobalKey<FormState>();
-  String? _tipoVisita;
-  String? _temaPrincipal;
-  String? _urgencia;
-  final _obsCtrl = TextEditingController();
+  String? _diagnosticoCategoria;
+  String _diagnosticoCriticidade = criticidadeOptions[1].value;
+  XFile? _diagnosticoImagem;
+  String _encaminhamentoPrioridade = prioridadeOptions[1].value;
+  String _encaminhamentoVerificacao = verificacaoOptions[0].value;
+  String? _encaminhamentoResponsavel;
+  DateTime? _encaminhamentoPrazo;
 
-  final _diagFormKey = GlobalKey<FormState>();
-  String? _diagCategoria;
-  String _diagCriticidade = 'Média';
-  final _diagObsCtrl = TextEditingController();
-  final List<_DiagnosticoItem> _diagnosticos = [];
-  bool _diagSemItens = false;
-
-  final _encFormKey = GlobalKey<FormState>();
-  final _encAcaoCtrl = TextEditingController();
-  String? _encResponsavel;
-  DateTime? _encPrazo;
-  String _encPrioridade = 'Média';
-  final List<_EncaminhamentoItem> _encaminhamentos = [];
-  bool _encSemItens = false;
-
-  static const _tiposVisita = [
-    'Rotina',
-    'Acompanhamento',
-    'Retorno',
-    'Verificação',
-  ];
-  static const _temas = [
-    'Solo',
-    'Plantio',
-    'Irrigação',
-    'Pragas',
-    'Colheita',
-    'Gestão',
-  ];
-  static const _urgencias = ['Baixa', 'Normal', 'Alta', 'Crítica'];
-  static const _categorias = [
-    'Solo e Fertilidade',
-    'Irrigação',
-    'Pragas e Doenças',
-    'Plantio',
-    'Colheita',
-    'Infraestrutura',
-    'Manejo Animal',
-    'Gestão',
-    'Outro',
-  ];
-  static const _criticidades = ['Baixa', 'Média', 'Alta', 'Crítica'];
-  static const _responsaveis = ['Sthefany Marim', 'João Silva', 'Ana Costa'];
+  final List<_DiagnosticoDraft> _diagnosticos = [];
+  final List<_EncaminhamentoDraft> _encaminhamentos = [];
 
   @override
   void initState() {
     super.initState();
-    if (widget.tipo.isNotEmpty && _tiposVisita.contains(widget.tipo)) {
-      _tipoVisita = widget.tipo;
-    }
+    _service = VisitaService(TokenService());
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _obsCtrl.dispose();
-    _diagObsCtrl.dispose();
-    _encAcaoCtrl.dispose();
+    _observacoesGeraisController.dispose();
+    _diagnosticoObservacoesController.dispose();
+    _encaminhamentoAcaoController.dispose();
     super.dispose();
+  }
+
+  String _formatDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day/$month/${value.year}';
+  }
+
+  bool _validateCurrentStep() {
+    switch (_step) {
+      case 1:
+        if (_diagnosticos.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Adicione pelo menos um diagnostico.'),
+            ),
+          );
+          return false;
+        }
+        return true;
+      case 2:
+        if (_encaminhamentos.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Adicione pelo menos um encaminhamento.'),
+            ),
+          );
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
   }
 
   void _goTo(int step) {
@@ -126,128 +133,276 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  bool _validateCurrent() {
-    switch (_step) {
-      case 0:
-        return _formKey1.currentState?.validate() ?? false;
-      case 1:
-        if (_diagnosticos.isEmpty) {
-          setState(() => _diagSemItens = true);
-          return false;
-        }
-        return true;
-      case 2:
-        if (_encaminhamentos.isEmpty) {
-          setState(() => _encSemItens = true);
-          return false;
-        }
-        return true;
-      default:
-        return true;
-    }
-  }
-
   void _next() {
-    if (_validateCurrent()) {
+    if (_validateCurrentStep()) {
       _goTo(_step + 1);
     }
   }
 
-  void _prev() => _goTo(_step - 1);
+  void _previous() {
+    if (_step > 0) {
+      _goTo(_step - 1);
+    }
+  }
 
-  void _finalizar() {
-    if (!_validateCurrent()) {
+  void _addDiagnostico() {
+    if (!(_diagnosticoFormKey.currentState?.validate() ?? false)) {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Visita finalizada com sucesso!'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-    Navigator.of(context).pop();
-  }
-
-  void _adicionarDiagnostico() {
-    if (!(_diagFormKey.currentState?.validate() ?? false)) {
+    if (_diagnosticoCategoria == null) {
       return;
     }
 
     setState(() {
       _diagnosticos.add(
-        _DiagnosticoItem(
-          categoria: _diagCategoria!,
-          criticidade: _diagCriticidade,
-          observacoes: _diagObsCtrl.text.trim(),
+        _DiagnosticoDraft(
+          categoria: _diagnosticoCategoria!,
+          criticidade: _diagnosticoCriticidade,
+          observacoes: _diagnosticoObservacoesController.text.trim(),
+          imagePath: _diagnosticoImagem?.path,
         ),
       );
-      _diagCategoria = null;
-      _diagCriticidade = 'Média';
-      _diagObsCtrl.clear();
-      _diagSemItens = false;
+      _diagnosticoCategoria = null;
+      _diagnosticoCriticidade = criticidadeOptions[1].value;
+      _diagnosticoObservacoesController.clear();
+      _diagnosticoImagem = null;
     });
   }
 
-  void _removerDiagnostico(int index) {
+  Future<void> _pickDiagnosticoImagem(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 1280,
+    );
+    if (picked != null && mounted) {
+      setState(() => _diagnosticoImagem = picked);
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.grey200,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Adicionar foto',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                title: const Text('Tirar foto'),
+                subtitle: const Text('Usar a cÃ¢mera do dispositivo'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickDiagnosticoImagem(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.infoSurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    color: AppColors.info,
+                    size: 20,
+                  ),
+                ),
+                title: const Text('Escolher da galeria'),
+                subtitle: const Text('Selecionar uma imagem existente'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickDiagnosticoImagem(ImageSource.gallery);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _removeDiagnostico(int index) {
     setState(() => _diagnosticos.removeAt(index));
   }
 
-  void _adicionarEncaminhamento() {
-    if (!(_encFormKey.currentState?.validate() ?? false)) {
-      return;
-    }
-    if (_encResponsavel == null) {
+  void _addEncaminhamento() {
+    if (!(_encaminhamentoFormKey.currentState?.validate() ?? false)) {
       return;
     }
 
     setState(() {
       _encaminhamentos.add(
-        _EncaminhamentoItem(
-          acao: _encAcaoCtrl.text.trim(),
-          responsavel: _encResponsavel!,
-          prazo: _encPrazo,
-          prioridade: _encPrioridade,
+        _EncaminhamentoDraft(
+          acao: _encaminhamentoAcaoController.text.trim(),
+          prioridade: _encaminhamentoPrioridade,
+          verificacao: _encaminhamentoVerificacao,
+          responsavel: _encaminhamentoResponsavel,
+          prazo: _encaminhamentoPrazo,
         ),
       );
-      _encAcaoCtrl.clear();
-      _encResponsavel = null;
-      _encPrazo = null;
-      _encPrioridade = 'Média';
-      _encSemItens = false;
+      _encaminhamentoAcaoController.clear();
+      _encaminhamentoResponsavel = null;
+      _encaminhamentoPrazo = null;
+      _encaminhamentoPrioridade = prioridadeOptions[1].value;
+      _encaminhamentoVerificacao = verificacaoOptions[0].value;
     });
   }
 
-  void _removerEncaminhamento(int index) {
+  void _removeEncaminhamento(int index) {
     setState(() => _encaminhamentos.removeAt(index));
   }
 
   Future<void> _selectPrazo() async {
-    final now = DateTime.now();
+    final today = DateUtils.dateOnly(DateTime.now());
     final picked = await showDatePicker(
       context: context,
-      initialDate: _encPrazo ?? now.add(const Duration(days: 7)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.fromSwatch().copyWith(
-            primary: AppColors.primary,
-            onPrimary: Colors.white,
+      initialDate: _encaminhamentoPrazo ?? today.add(const Duration(days: 7)),
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSwatch().copyWith(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      setState(() => _encaminhamentoPrazo = picked);
+    }
+  }
+
+  Future<void> _finishVisit() async {
+    if (!_validateCurrentStep()) {
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      final imageUrls = await Future.wait(
+        _diagnosticos.map((d) async {
+          if (d.imagePath == null) return null;
+          return _service.uploadDiagnosticoImagem(
+            widget.visit.id,
+            d.imagePath!,
+          );
+        }),
+      );
+
+      final request = FinalizarVisitaRequest(
+        diagnosticos: List.generate(
+          _diagnosticos.length,
+          (i) => DiagnosticoPayload(
+            categoria: _diagnosticos[i].categoria,
+            criticidade: _diagnosticos[i].criticidade,
+            observacoes: _diagnosticos[i].observacoes,
+            imagemUrl: imageUrls[i],
           ),
         ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _encPrazo = picked);
+        encaminhamentos: _encaminhamentos
+            .map(
+              (item) => EncaminhamentoPayload(
+                acaoRealizada: item.acao,
+                responsavel: item.responsavel,
+                prazo: item.prazo,
+                verificacao: item.verificacao,
+                prioridade: item.prioridade,
+              ),
+            )
+            .toList(),
+        observacoesGerais: _observacoesGeraisController.text.trim().isEmpty
+            ? null
+            : _observacoesGeraisController.text.trim(),
+      );
+
+      await _service.finalizar(widget.visit.id, request);
+
+      if (!mounted) {
+        return;
+      }
+
+      AppRefreshBus.notifyChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Visita finalizada com sucesso.'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      await ApiErrorDialog.show(
+        context,
+        error,
+        title: 'Erro ao finalizar visita',
+        fallback: 'Nao foi possivel finalizar a visita.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           _buildHeader(),
@@ -255,7 +410,11 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              children: [_buildStep1(), _buildStep2(), _buildStep3()],
+              children: [
+                _buildResumoStep(),
+                _buildDiagnosticosStep(),
+                _buildEncaminhamentosStep(),
+              ],
             ),
           ),
           _buildBottomBar(),
@@ -279,7 +438,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
           Row(
             children: [
               GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: _saving ? null : () => Navigator.of(context).pop(),
                 child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
               const SizedBox(width: 12),
@@ -303,20 +462,20 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
   }
 
   Widget _buildStepIndicator() {
-    final labels = ['Identificação', 'Diagnóstico', 'Encaminhamento'];
+    const labels = ['Resumo', 'Diagnosticos', 'Encaminhamentos'];
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (int i = 0; i < 3; i++) ...[
-          _stepCircle(i, labels[i]),
-          if (i < 2)
+        for (int index = 0; index < labels.length; index++) ...[
+          _buildStepCircle(index, labels[index]),
+          if (index < labels.length - 1)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(top: 13),
                 child: Container(
                   height: 2,
-                  color: _step > i
+                  color: _step > index
                       ? Colors.white
                       : Colors.white.withValues(alpha: 0.35),
                 ),
@@ -327,7 +486,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _stepCircle(int index, String label) {
+  Widget _buildStepCircle(int index, String label) {
     final isActive = index == _step;
     final isCompleted = index < _step;
 
@@ -391,7 +550,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
           if (_step > 0) ...[
             Expanded(
               child: OutlinedButton(
-                onPressed: _prev,
+                onPressed: _saving ? null : _previous,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(color: AppColors.grey200),
@@ -413,9 +572,14 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
           ],
           Expanded(
             child: ElevatedButton(
-              onPressed: _step == 2 ? _finalizar : _next,
+              onPressed: _saving
+                  ? null
+                  : _step == 2
+                  ? _finishVisit
+                  : _next,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                disabledBackgroundColor: AppColors.grey200,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -423,7 +587,11 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                 ),
               ),
               child: Text(
-                _step == 2 ? 'Finalizar' : 'Próximo',
+                _saving
+                    ? 'Salvando...'
+                    : _step == 2
+                    ? 'Finalizar'
+                    : 'Proximo',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -437,151 +605,250 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _buildStep1() {
-    final dataFmt =
-        '${widget.dataVisita.day.toString().padLeft(2, '0')}/'
-        '${widget.dataVisita.month.toString().padLeft(2, '0')}/'
-        '${widget.dataVisita.year}';
+  Widget _buildResumoStep() {
+    final visit = widget.visit;
+    final tipo = optionLabel(
+      tipoVisitaOptions,
+      visit.tipoVisita,
+      fallback: 'Nao informado',
+    );
+    final urgencia = optionLabel(
+      urgenciaOptions,
+      visit.urgencia,
+      fallback: 'Nao informada',
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-      child: Form(
-        key: _formKey1,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Dados da Visita',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _label('Propriedade Rural *'),
-            _readonlyField(widget.propriedade),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _label('Data da Visita *'),
-                      _readonlyField(dataFmt),
-                    ],
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _label('Horário *'),
-                      _readonlyField(widget.horario),
-                    ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Dados da visita',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 14),
+                _label('Propriedade Rural'),
+                _readonlyField(visit.propriedadeNome),
+                const SizedBox(height: 12),
+                _label('Tecnico responsavel'),
+                _readonlyField(visit.usuarioNome),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _label('Data'),
+                          _readonlyField(_formatDate(visit.dataVisita)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _label('Horario'),
+                          _readonlyField(visit.horaCurta),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildStatusChip(tipo, AppColors.primary),
+                    _buildStatusChip(urgencia, _urgenciaColor(visit.urgencia)),
+                    _buildStatusChip(
+                      visit.statusLabel,
+                      _statusColor(visit.statusVisita),
+                    ),
+                  ],
+                ),
+                if (visit.temaPrincipal != null &&
+                    visit.temaPrincipal!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _label('Tema principal'),
+                  _readonlyField(visit.temaPrincipal!),
+                ],
+                if (visit.observacoes != null &&
+                    visit.observacoes!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _label('Observacoes do agendamento'),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      visit.observacoes!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _label('Observacoes gerais'),
+                TextFormField(
+                  controller: _observacoesGeraisController,
+                  maxLines: 4,
+                  decoration: _inputDecoration(
+                    'Descreva observacoes finais, orientacoes e contexto da visita.',
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            _label('Tipo de Visita'),
-            _dropdown(
-              value: _tipoVisita,
-              hint: 'Selecione o tipo',
-              items: _tiposVisita,
-              onChanged: (value) => setState(() => _tipoVisita = value),
-            ),
-            const SizedBox(height: 14),
-            _label('Tema Principal'),
-            _dropdown(
-              value: _temaPrincipal,
-              hint: 'Selecione o tema',
-              items: _temas,
-              onChanged: (value) => setState(() => _temaPrincipal = value),
-            ),
-            const SizedBox(height: 14),
-            _label('Urgência *'),
-            _dropdown(
-              value: _urgencia,
-              hint: 'Selecione a urgência',
-              items: _urgencias,
-              validator: (value) => value == null ? 'Campo obrigatório' : null,
-              onChanged: (value) => setState(() => _urgencia = value),
-            ),
-            const SizedBox(height: 14),
-            _label('Observações Gerais'),
-            TextFormField(
-              controller: _obsCtrl,
-              maxLines: 3,
-              decoration: _inputDec('Descreva observações gerais...'),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
-  Widget _buildStep2() {
+  Widget _buildDiagnosticosStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Diagnósticos da Visita',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            'Diagnosticos da visita',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Adicione um ou mais diagnósticos identificados.',
+            'Adicione os diagnosticos identificados durante a visita.',
             style: TextStyle(fontSize: 13, color: AppColors.textMuted),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.grey50,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Form(
-              key: _diagFormKey,
+              key: _diagnosticoFormKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _label('Categoria *'),
-                  _dropdown(
-                    value: _diagCategoria,
-                    hint: 'Selecione a categoria',
-                    items: _categorias,
+                  DropdownButtonFormField<String>(
+                    initialValue: _diagnosticoCategoria,
+                    isExpanded: true,
+                    menuMaxHeight: _dropdownMenuMaxHeight,
                     validator: (value) =>
-                        value == null ? 'Selecione uma categoria' : null,
+                        value == null ? 'Selecione uma categoria.' : null,
                     onChanged: (value) =>
-                        setState(() => _diagCategoria = value),
+                        setState(() => _diagnosticoCategoria = value),
+                    decoration: _dropdownDecoration(),
+                    hint: const Text(
+                      'Selecione a categoria',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                    items: diagnosticoCategorias
+                        .map(
+                          (item) => DropdownMenuItem<String>(
+                            value: item,
+                            child: Text(
+                              item,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                   const SizedBox(height: 14),
                   _label('Criticidade'),
                   const SizedBox(height: 8),
-                  _buildCriticidadeSelector(),
+                  _buildOptionSelector(
+                    value: _diagnosticoCriticidade,
+                    options: criticidadeOptions,
+                    colorForValue: _criticidadeColor,
+                    backgroundForValue: _criticidadeBackground,
+                    onChanged: (value) {
+                      setState(() => _diagnosticoCriticidade = value);
+                    },
+                  ),
                   const SizedBox(height: 14),
-                  _label('Observações *'),
+                  _label('Observacoes'),
                   TextFormField(
-                    controller: _diagObsCtrl,
+                    controller: _diagnosticoObservacoesController,
                     maxLines: 3,
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Campo obrigatório'
+                        ? 'Descreva o diagnostico.'
                         : null,
-                    decoration: _inputDec(
-                      'Descreva o diagnóstico observado...',
+                    decoration: _inputDecoration(
+                      'Descreva o que foi observado na visita.',
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  _label('Foto (opcional)'),
+                  _buildImagePicker(),
                   const SizedBox(height: 16),
                   SizedBox(
                     height: 46,
                     child: OutlinedButton.icon(
-                      onPressed: _adicionarDiagnostico,
+                      onPressed: _addDiagnostico,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text(
-                        'Adicionar Diagnóstico',
+                        'Adicionar Diagnostico',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -600,25 +867,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
               ),
             ),
           ),
-          if (_diagSemItens) ...[
-            const SizedBox(height: 8),
-            const Row(
-              children: [
-                Icon(Icons.error_outline, size: 14, color: AppColors.error),
-                SizedBox(width: 6),
-                Text(
-                  'Adicione pelo menos um diagnóstico para continuar.',
-                  style: TextStyle(fontSize: 12, color: AppColors.error),
-                ),
-              ],
-            ),
-          ],
           if (_diagnosticos.isNotEmpty) ...[
             const SizedBox(height: 24),
             Row(
               children: [
                 const Text(
-                  'Diagnósticos Adicionados',
+                  'Diagnosticos adicionados',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(width: 8),
@@ -634,51 +888,10 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _buildCriticidadeSelector() {
-    return Row(
-      children: _criticidades.map((label) {
-        final isSelected = _diagCriticidade == label;
-        final color = _criticidadeColor(label);
-        final bg = _criticidadeBg(label);
-
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _diagCriticidade = label),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              margin: const EdgeInsets.only(right: 6),
-              padding: const EdgeInsets.symmetric(vertical: 9),
-              decoration: BoxDecoration(
-                color: isSelected ? bg : AppColors.fieldBg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isSelected ? color : AppColors.border,
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected
-                        ? FontWeight.w700
-                        : FontWeight.normal,
-                    color: isSelected ? color : AppColors.textMuted,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   Widget _buildDiagnosticoCard(int index) {
     final item = _diagnosticos[index];
     final color = _criticidadeColor(item.criticidade);
-    final bg = _criticidadeBg(item.criticidade);
+    final background = _criticidadeBackground(item.criticidade);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -730,11 +943,11 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: bg,
+                            color: background,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            item.criticidade,
+                            optionLabel(criticidadeOptions, item.criticidade),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -751,9 +964,19 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (item.imagePath != null) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(item.imagePath!),
+                          height: 100,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -761,7 +984,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18),
               color: AppColors.grey400,
-              onPressed: () => _removerDiagnostico(index),
+              onPressed: () => _removeDiagnostico(index),
               visualDensity: VisualDensity.compact,
             ),
           ],
@@ -770,12 +993,10 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _buildStep3() {
-    final prazoFmt = _encPrazo == null
-        ? null
-        : '${_encPrazo!.day.toString().padLeft(2, '0')}/'
-              '${_encPrazo!.month.toString().padLeft(2, '0')}/'
-              '${_encPrazo!.year}';
+  Widget _buildEncaminhamentosStep() {
+    final prazoLabel = _encaminhamentoPrazo == null
+        ? 'dd/mm/aaaa'
+        : _formatDate(_encaminhamentoPrazo!);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -784,50 +1005,75 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
         children: [
           const Text(
             'Encaminhamentos',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Adicione um ou mais encaminhamentos necessários.',
+            'Registre as acoes que precisam de acompanhamento.',
             style: TextStyle(fontSize: 13, color: AppColors.textMuted),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.grey50,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Form(
-              key: _encFormKey,
+              key: _encaminhamentoFormKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _label('Ação de Encaminhamento *'),
+                  _label('Acao de encaminhamento *'),
                   TextFormField(
-                    controller: _encAcaoCtrl,
+                    controller: _encaminhamentoAcaoController,
                     maxLines: 3,
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Campo obrigatório'
+                        ? 'Descreva a acao.'
                         : null,
-                    decoration: _inputDec(
-                      'Descreva a ação de encaminhamento...',
+                    decoration: _inputDecoration(
+                      'Ex.: solicitar analise, agendar retorno, orientar correcao.',
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _label('Responsável *'),
-                  _dropdown(
-                    value: _encResponsavel,
-                    hint: 'Selecionar responsável',
-                    items: _responsaveis,
-                    validator: (value) =>
-                        value == null ? 'Campo obrigatório' : null,
+                  _label('Responsavel'),
+                  DropdownButtonFormField<String>(
+                    initialValue: _encaminhamentoResponsavel,
+                    isExpanded: true,
+                    menuMaxHeight: _dropdownMenuMaxHeight,
                     onChanged: (value) =>
-                        setState(() => _encResponsavel = value),
+                        setState(() => _encaminhamentoResponsavel = value),
+                    decoration: _dropdownDecoration(),
+                    hint: const Text(
+                      'Selecione o responsavel',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                    items: responsavelOptions
+                        .map(
+                          (option) => DropdownMenuItem<String>(
+                            value: option.value,
+                            child: Text(
+                              option.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                   const SizedBox(height: 14),
-                  _label('Prazo para Conclusão'),
+                  _label('Prazo'),
                   GestureDetector(
                     onTap: _selectPrazo,
                     child: Container(
@@ -842,10 +1088,10 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              prazoFmt ?? 'dd/mm/aaaa',
+                              prazoLabel,
                               style: TextStyle(
                                 fontSize: 15,
-                                color: _encPrazo == null
+                                color: _encaminhamentoPrazo == null
                                     ? AppColors.textMuted
                                     : AppColors.textPrimary,
                               ),
@@ -861,14 +1107,47 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                  _label('Forma de verificacao'),
+                  DropdownButtonFormField<String>(
+                    initialValue: _encaminhamentoVerificacao,
+                    isExpanded: true,
+                    menuMaxHeight: _dropdownMenuMaxHeight,
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _encaminhamentoVerificacao = value);
+                      }
+                    },
+                    decoration: _dropdownDecoration(),
+                    items: verificacaoOptions
+                        .map(
+                          (option) => DropdownMenuItem<String>(
+                            value: option.value,
+                            child: Text(
+                              option.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 14),
                   _label('Prioridade'),
                   const SizedBox(height: 8),
-                  _buildPrioritySelector(),
+                  _buildOptionSelector(
+                    value: _encaminhamentoPrioridade,
+                    options: prioridadeOptions,
+                    colorForValue: _prioridadeColor,
+                    backgroundForValue: _prioridadeBackground,
+                    onChanged: (value) {
+                      setState(() => _encaminhamentoPrioridade = value);
+                    },
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     height: 46,
                     child: OutlinedButton.icon(
-                      onPressed: _adicionarEncaminhamento,
+                      onPressed: _addEncaminhamento,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text(
                         'Adicionar Encaminhamento',
@@ -890,25 +1169,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
               ),
             ),
           ),
-          if (_encSemItens) ...[
-            const SizedBox(height: 8),
-            const Row(
-              children: [
-                Icon(Icons.error_outline, size: 14, color: AppColors.error),
-                SizedBox(width: 6),
-                Text(
-                  'Adicione pelo menos um encaminhamento para finalizar.',
-                  style: TextStyle(fontSize: 12, color: AppColors.error),
-                ),
-              ],
-            ),
-          ],
           if (_encaminhamentos.isNotEmpty) ...[
             const SizedBox(height: 24),
             Row(
               children: [
                 const Text(
-                  'Encaminhamentos Adicionados',
+                  'Encaminhamentos adicionados',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(width: 8),
@@ -926,13 +1192,9 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
 
   Widget _buildEncaminhamentoCard(int index) {
     final item = _encaminhamentos[index];
-    final color = _priorityColor(item.prioridade);
-    final bg = _priorityBg(item.prioridade);
-    final prazoStr = item.prazo == null
-        ? 'Sem prazo'
-        : '${item.prazo!.day.toString().padLeft(2, '0')}/'
-              '${item.prazo!.month.toString().padLeft(2, '0')}/'
-              '${item.prazo!.year}';
+    final color = _prioridadeColor(item.prioridade);
+    final background = _prioridadeBackground(item.prioridade);
+    final prazo = item.prazo == null ? 'Sem prazo' : _formatDate(item.prazo!);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -976,8 +1238,6 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Container(
@@ -986,11 +1246,11 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: bg,
+                            color: background,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            item.prioridade,
+                            optionLabel(prioridadeOptions, item.prioridade),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -1009,17 +1269,20 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                           color: AppColors.textMuted,
                         ),
                         const SizedBox(width: 4),
-                        Flexible(
+                        Expanded(
                           child: Text(
-                            item.responsavel,
+                            item.responsavel ?? 'Responsavel nao informado',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
                         const Icon(
                           Icons.calendar_today_outlined,
                           size: 12,
@@ -1027,7 +1290,25 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          prazoStr,
+                          prazo,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.fact_check_outlined,
+                          size: 12,
+                          color: AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          optionLabel(verificacaoOptions, item.verificacao),
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -1042,7 +1323,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18),
               color: AppColors.grey400,
-              onPressed: () => _removerEncaminhamento(index),
+              onPressed: () => _removeEncaminhamento(index),
               visualDensity: VisualDensity.compact,
             ),
           ],
@@ -1051,46 +1332,164 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _buildPrioritySelector() {
-    const options = ['Alta', 'Média', 'Baixa'];
+  Widget _buildImagePicker() {
+    if (_diagnosticoImagem != null) {
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(_diagnosticoImagem!.path),
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: () => setState(() => _diagnosticoImagem = null),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: _showImageSourceSheet,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      'Trocar',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
+    return GestureDetector(
+      onTap: _showImageSourceSheet,
+      child: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color: AppColors.fieldBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_a_photo_outlined,
+              color: AppColors.textMuted,
+              size: 22,
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Adicionar foto',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionSelector({
+    required String value,
+    required List<FormOption> options,
+    required Color Function(String) colorForValue,
+    required Color Function(String) backgroundForValue,
+    required ValueChanged<String> onChanged,
+  }) {
     return Row(
-      children: options.map((label) {
-        final isSelected = _encPrioridade == label;
-        final textColor = _priorityColor(label);
-        final bgColor = _priorityBg(label);
+      children: List.generate(options.length, (index) {
+        final option = options[index];
+        final isSelected = option.value == value;
+        final color = colorForValue(option.value);
+        final background = backgroundForValue(option.value);
 
         return Expanded(
           child: GestureDetector(
-            onTap: () => setState(() => _encPrioridade = label),
+            onTap: () => onChanged(option.value),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              margin: const EdgeInsets.only(right: 8),
+              margin: EdgeInsets.only(
+                right: index == options.length - 1 ? 0 : 8,
+              ),
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? bgColor : AppColors.fieldBg,
+                color: isSelected ? background : Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isSelected ? textColor : AppColors.border,
+                  color: isSelected ? color : const Color(0xFFDDDDDD),
                   width: isSelected ? 1.5 : 1,
                 ),
               ),
               child: Center(
                 child: Text(
-                  label,
+                  option.label,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: isSelected
                         ? FontWeight.w700
                         : FontWeight.normal,
-                    color: isSelected ? textColor : AppColors.textMuted,
+                    color: isSelected ? color : AppColors.textMuted,
                   ),
                 ),
               ),
             ),
           ),
         );
-      }).toList(),
+      }),
+    );
+  }
+
+  Widget _buildStatusChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -1112,50 +1511,58 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
+  Color _statusColor(String status) {
+    return switch (status) {
+      'CONCLUIDA' => AppColors.success,
+      'CANCELADA' => AppColors.textMuted,
+      'ATRASADA' => AppColors.error,
+      _ => AppColors.primary,
+    };
+  }
+
+  Color _urgenciaColor(String urgencia) {
+    return switch (urgencia) {
+      'CRITICA' => AppColors.error,
+      'ALTA' => AppColors.warning,
+      'MEDIA' => AppColors.info,
+      _ => AppColors.success,
+    };
+  }
+
   Color _criticidadeColor(String value) {
-    switch (value) {
-      case 'Crítica':
-        return AppColors.error;
-      case 'Alta':
-        return AppColors.warning;
-      case 'Média':
-        return const Color(0xFF1565C0);
-      default:
-        return AppColors.success;
-    }
+    return switch (value) {
+      'CRITICA' => AppColors.error,
+      'ALTA' => AppColors.warning,
+      'MEDIA' => AppColors.info,
+      _ => AppColors.success,
+    };
   }
 
-  Color _criticidadeBg(String value) {
-    switch (value) {
-      case 'Crítica':
-        return AppColors.errorSurface;
-      case 'Alta':
-        return AppColors.warningSurface;
-      case 'Média':
-        return AppColors.infoSurface;
-      default:
-        return AppColors.successSurface;
-    }
+  Color _criticidadeBackground(String value) {
+    return switch (value) {
+      'CRITICA' => AppColors.errorSurface,
+      'ALTA' => AppColors.warningSurface,
+      'MEDIA' => AppColors.infoSurface,
+      _ => AppColors.successSurface,
+    };
   }
 
-  Color _priorityColor(String value) {
-    if (value == 'Alta') {
-      return AppColors.error;
-    }
-    if (value == 'Média') {
-      return AppColors.warning;
-    }
-    return AppColors.success;
+  Color _prioridadeColor(String value) {
+    return switch (value) {
+      'CRITICA' => AppColors.error,
+      'ALTA' => AppColors.warning,
+      'MEDIA' => AppColors.info,
+      _ => AppColors.success,
+    };
   }
 
-  Color _priorityBg(String value) {
-    if (value == 'Alta') {
-      return AppColors.errorSurface;
-    }
-    if (value == 'Média') {
-      return AppColors.warningSurface;
-    }
-    return AppColors.successSurface;
+  Color _prioridadeBackground(String value) {
+    return switch (value) {
+      'CRITICA' => AppColors.errorSurface,
+      'ALTA' => AppColors.warningSurface,
+      'MEDIA' => AppColors.infoSurface,
+      _ => AppColors.successSurface,
+    };
   }
 
   Widget _label(String text) {
@@ -1191,7 +1598,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  InputDecoration _inputDec(String hint) {
+  InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
@@ -1221,41 +1628,23 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _dropdown({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-    FormFieldValidator<String>? validator,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      validator: validator,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: AppColors.fieldBg,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
+  InputDecoration _dropdownDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: AppColors.fieldBg,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
       ),
-      hint: Text(hint, style: const TextStyle(color: AppColors.textMuted)),
-      items: items
-          .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-          .toList(),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
     );
   }
 }

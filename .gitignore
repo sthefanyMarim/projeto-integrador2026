@@ -3,10 +3,11 @@
 **/.idea/
 
 # Frontend local config
-mobile_app/.env
-mobile_app/*figma_preview.txt
+.env
+*figma_preview.txt
+*figma_*_frames.txt
 
 # Backend local artifacts
-projeto-integrador/spring-run*.log
-projeto-integrador/agenda-desktop-link/
-projeto-integrador/*.pdf
+spring-run*.log
+agenda-desktop-link/
+Entrega2-final-Atualizada20261 (4).pdf

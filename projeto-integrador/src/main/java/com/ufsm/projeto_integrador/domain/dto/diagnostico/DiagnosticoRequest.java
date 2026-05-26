@@ -7,5 +7,6 @@ import jakarta.validation.constraints.NotNull;
 public record DiagnosticoRequest(
         @NotBlank(message = "Categoria obrigatória") String categoria,
         @NotNull(message = "Criticidade obrigatória") Criticidade criticidade,
-        String observacoes
+        String observacoes,
+        String imagemUrl
 ) {}

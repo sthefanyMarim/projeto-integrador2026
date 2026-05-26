@@ -2,6 +2,7 @@ package com.ufsm.projeto_integrador.service;
 
 import com.ufsm.projeto_integrador.domain.dto.common.PageResponse;
 import com.ufsm.projeto_integrador.domain.dto.visita.FinalizarVisitaRequest;
+import com.ufsm.projeto_integrador.domain.dto.visita.VisitaDetalheResponse;
 import com.ufsm.projeto_integrador.domain.dto.visita.VisitaRequest;
 import com.ufsm.projeto_integrador.domain.dto.visita.VisitaResponse;
 import com.ufsm.projeto_integrador.domain.entity.*;
@@ -30,12 +31,14 @@ public class VisitaTecnicaService {
     private final VisitaTecnicaRepository repository;
     private final PropriedadeRepository propriedadeRepository;
 
+    @Transactional(readOnly = true)
     public List<VisitaResponse> listarHoje(Long userId) {
         return repository
                 .findByUsuarioIdAndDataVisitaOrderByHoraVisitaAsc(userId, LocalDate.now())
                 .stream().map(VisitaResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public PageResponse<VisitaResponse> listar(StatusVisita status, Long propId, Pageable pageable) {
         Long userId = SecurityUtils.isAdmin() ? null : SecurityUtils.getCurrentUserId();
         Specification<VisitaTecnica> specification = VisitaTecnicaSpecifications.doUsuario(userId)
@@ -45,11 +48,24 @@ public class VisitaTecnicaService {
         return PageResponse.from(repository.findAll(specification, pageable).map(VisitaResponse::from));
     }
 
+    @Transactional(readOnly = true)
     public VisitaResponse buscarPorId(Long id) {
-        return VisitaResponse.from(findOrThrow(id));
+        return VisitaResponse.from(buscarAutorizada(id));
     }
 
-    @CacheEvict(value = "dashboard", key = "#result.usuarioId()")
+    @Transactional(readOnly = true)
+    public VisitaDetalheResponse buscarDetalhes(Long id) {
+        return VisitaDetalheResponse.from(buscarAutorizada(id));
+    }
+
+    @Transactional(readOnly = true)
+    public VisitaTecnica buscarAutorizada(Long id) {
+        VisitaTecnica visita = findOrThrow(id);
+        validarAcesso(visita);
+        return visita;
+    }
+
+    @CacheEvict(value = "dashboard", allEntries = true)
     @Transactional
     public VisitaResponse agendar(VisitaRequest req) {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -77,6 +93,7 @@ public class VisitaTecnicaService {
         return VisitaResponse.from(repository.save(visita));
     }
 
+    @CacheEvict(value = "dashboard", allEntries = true)
     @Transactional
     public VisitaResponse atualizar(Long id, VisitaRequest req) {
         VisitaTecnica visita = findOrThrow(id);
@@ -96,6 +113,7 @@ public class VisitaTecnicaService {
         return VisitaResponse.from(repository.save(visita));
     }
 
+    @CacheEvict(value = "dashboard", allEntries = true)
     @Transactional
     public VisitaResponse finalizar(Long id, FinalizarVisitaRequest req) {
         VisitaTecnica visita = findOrThrow(id);
@@ -115,6 +133,7 @@ public class VisitaTecnicaService {
                     .categoria(d.categoria())
                     .criticidade(d.criticidade())
                     .observacoes(d.observacoes())
+                    .imagemUrl(d.imagemUrl())
                     .build();
             visita.getDiagnosticos().add(diag);
         });
@@ -136,6 +155,7 @@ public class VisitaTecnicaService {
         return VisitaResponse.from(repository.save(visita));
     }
 
+    @CacheEvict(value = "dashboard", allEntries = true)
     @Transactional
     public void cancelar(Long id) {
         VisitaTecnica visita = findOrThrow(id);

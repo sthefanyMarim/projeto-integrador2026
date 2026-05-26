@@ -41,7 +41,7 @@ public class PropriedadeService {
         return PropriedadeResponse.from(findOrThrow(id));
     }
 
-    @CacheEvict(value = "propriedades", allEntries = true)
+    @CacheEvict(value = {"propriedades", "dashboard"}, allEntries = true)
     @Transactional
     public PropriedadeResponse criar(PropriedadeRequest req) {
         Propriedade propriedade = Propriedade.builder()
@@ -59,7 +59,7 @@ public class PropriedadeService {
         return PropriedadeResponse.from(repository.save(propriedade));
     }
 
-    @CacheEvict(value = "propriedades", allEntries = true)
+    @CacheEvict(value = {"propriedades", "dashboard"}, allEntries = true)
     @Transactional
     public PropriedadeResponse atualizar(Long id, PropriedadeRequest req) {
         Propriedade propriedade = findOrThrow(id);
@@ -80,7 +80,7 @@ public class PropriedadeService {
         return PropriedadeResponse.from(repository.save(propriedade));
     }
 
-    @CacheEvict(value = "propriedades", allEntries = true)
+    @CacheEvict(value = {"propriedades", "dashboard"}, allEntries = true)
     @Transactional
     public void deletar(Long id) {
         findOrThrow(id);

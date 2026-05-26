@@ -21,7 +21,6 @@ public record UsuarioRequest(
 
         String telefone,
 
-        @NotBlank(message = "Senha obrigatória")
         @Size(min = 6, message = "Senha deve ter no mínimo 6 caracteres")
         String senha,
 

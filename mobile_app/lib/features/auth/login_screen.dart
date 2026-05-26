@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/token_service.dart';
@@ -18,7 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _senhaController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
-  String? _error;
   bool _obscureSenha = true;
 
   late final AuthService _authService;
@@ -37,25 +37,34 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _loading = true);
+
     try {
       await _authService.login(
         _matriculaController.text.trim(),
         _senhaController.text,
       );
       if (mounted) context.go('/home');
-    } on DioException catch (e) {
-      setState(() {
-        _error = e.response?.statusCode == 401
-            ? 'Matrícula ou senha incorretos.'
-            : 'Erro ao conectar. Verifique a rede.';
-      });
-    } catch (_) {
-      setState(() => _error = 'Erro inesperado. Tente novamente.');
+    } on DioException catch (error) {
+      if (mounted) {
+        await ApiErrorDialog.show(
+          context,
+          error,
+          title: 'Falha no login',
+          fallback: 'NÃ£o foi possÃ­vel entrar agora.',
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        await ApiErrorDialog.show(
+          context,
+          error,
+          title: 'Falha no login',
+          fallback: 'Erro inesperado. Tente novamente.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -64,48 +73,49 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true,
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        behavior: HitTestBehavior.opaque,
-        child: SafeArea(
-          top: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header fixo — não participa do scroll
-              _buildHeader(),
-              // Formulário ocupa o espaço restante e rola sozinho quando
-              // o teclado sobe, sem criar scroll além do conteúdo real
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: _buildFormCard(),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: AppColors.primaryGradient,
+          ),
+        ),
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeaderContent(),
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: _buildFormCard(),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader() {
-    return Container(
-      height: 272,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: AppColors.primaryGradient,
-        ),
-        boxShadow: [
-          BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 4)),
-        ],
-      ),
+  Widget _buildHeaderContent() {
+    return SizedBox(
+      height: 290,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -116,8 +126,18 @@ class _LoginScreenState extends State<LoginScreen> {
               color: Colors.white.withValues(alpha: 0.85),
               shape: BoxShape.circle,
             ),
-            child: const Center(
-              child: Text('🌿', style: TextStyle(fontSize: 36)),
+            child: Center(
+              child: Container(
+                width: 66,
+                height: 66,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text('ðŸŒ¿', style: TextStyle(fontSize: 34)),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -131,15 +151,13 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Gestão de Visitas Técnicas',
+            'GestÃ£o de Visitas TÃ©cnicas',
             style: TextStyle(color: AppColors.headerSubtitle, fontSize: 14),
           ),
         ],
       ),
     );
   }
-
-  // ── Form card ───────────────────────────────────────────────────────────────
 
   Widget _buildFormCard() {
     return Container(
@@ -153,81 +171,79 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Bem-vindo!', style: Theme.of(context).textTheme.headlineMedium),
+            const Text(
+              'Bem-vindo!',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(
-              'Faça login para continuar',
-              style: Theme.of(context).textTheme.bodyMedium,
+            const Text(
+              'FaÃ§a login para continuar',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 28),
-
-            Text('Matrícula', style: Theme.of(context).textTheme.titleSmall),
+            const Text(
+              'MatrÃ­cula',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 6),
             TextFormField(
               controller: _matriculaController,
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(hintText: 'Ex: 202412345'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Informe a matrícula' : null,
+              decoration: _fieldDecoration(hint: 'Ex: 202412345'),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Informe a matrÃ­cula'
+                  : null,
             ),
             const SizedBox(height: 20),
-
-            Text('Senha', style: Theme.of(context).textTheme.titleSmall),
+            const Text(
+              'Senha',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 6),
             TextFormField(
               controller: _senhaController,
               obscureText: _obscureSenha,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _login(),
-              decoration: InputDecoration(
-                hintText: '••••••••',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureSenha
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: AppColors.textHint,
-                    size: 20,
+              decoration: _fieldDecoration(
+                hint: 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢',
+                suffix: GestureDetector(
+                  onTap: () => setState(() => _obscureSenha = !_obscureSenha),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Icon(
+                      _obscureSenha
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: AppColors.textHint,
+                      size: 20,
+                    ),
                   ),
-                  onPressed: () => setState(() => _obscureSenha = !_obscureSenha),
                 ),
               ),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Informe a senha' : null,
             ),
-
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.errorSurface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.error, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: AppColors.error, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
             const SizedBox(height: 32),
             _buildLoginButton(),
             const SizedBox(height: 48),
-
             Center(
               child: Text(
-                'v1.0.0 · UFSM Colégio Politécnico',
-                style: Theme.of(context).textTheme.bodySmall,
+                'v1.0.0 Â· UFSM ColÃ©gio PolitÃ©cnico',
+                style: TextStyle(fontSize: 12, color: AppColors.textHint),
               ),
             ),
           ],
@@ -236,7 +252,37 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ── Botão com gradiente ─────────────────────────────────────────────────────
+  InputDecoration _fieldDecoration({required String hint, Widget? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
+      filled: true,
+      fillColor: AppColors.fieldBg,
+      suffixIcon: suffix,
+      suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+      ),
+    );
+  }
 
   Widget _buildLoginButton() {
     return SizedBox(
@@ -246,9 +292,13 @@ class _LoginScreenState extends State<LoginScreen> {
         decoration: BoxDecoration(
           gradient: _loading
               ? null
-              : const LinearGradient(colors: AppColors.primaryGradient),
+              : const LinearGradient(
+                  colors: AppColors.primaryGradient,
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
           color: _loading ? AppColors.grey200 : null,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(28),
         ),
         child: ElevatedButton(
           onPressed: _loading ? null : _login,
@@ -257,7 +307,7 @@ class _LoginScreenState extends State<LoginScreen> {
             shadowColor: Colors.transparent,
             disabledBackgroundColor: Colors.transparent,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(28),
             ),
           ),
           child: _loading

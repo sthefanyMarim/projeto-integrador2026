@@ -10,6 +10,7 @@ import com.ufsm.projeto_integrador.repository.EncaminhamentoRepository;
 import com.ufsm.projeto_integrador.repository.spec.EncaminhamentoSpecifications;
 import com.ufsm.projeto_integrador.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class EncaminhamentoService {
 
     private final EncaminhamentoRepository repository;
 
+    @Transactional(readOnly = true)
     public PageResponse<EncaminhamentoResponse> listarMeus(StatusEncaminhamento status, Pageable pageable) {
         Long userId = SecurityUtils.getCurrentUserId();
         Specification<Encaminhamento> specification = EncaminhamentoSpecifications.doUsuario(userId)
@@ -31,6 +33,7 @@ public class EncaminhamentoService {
         return PageResponse.from(repository.findAll(specification, pageable).map(EncaminhamentoResponse::from));
     }
 
+    @CacheEvict(value = "dashboard", allEntries = true)
     @Transactional
     public EncaminhamentoResponse concluir(Long id) {
         Encaminhamento enc = findOrThrow(id);
@@ -46,6 +49,7 @@ public class EncaminhamentoService {
         return EncaminhamentoResponse.from(repository.save(enc));
     }
 
+    @CacheEvict(value = "dashboard", allEntries = true)
     @Transactional
     public void cancelar(Long id) {
         Encaminhamento enc = findOrThrow(id);

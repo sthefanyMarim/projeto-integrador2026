@@ -36,6 +36,9 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioResponse criar(UsuarioRequest req) {
+        if (req.senha() == null || req.senha().isBlank()) {
+            throw new BusinessException("Senha obrigatória");
+        }
         if (repository.existsByMatricula(req.matricula())) {
             throw new BusinessException("Matricula ja cadastrada: " + req.matricula());
         }

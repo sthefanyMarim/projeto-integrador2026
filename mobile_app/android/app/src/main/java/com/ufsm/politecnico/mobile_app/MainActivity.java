@@ -1,4 +1,4 @@
-package com.ufsm.politecnico.mobile_app;
+package com.ufsm.politecnico.polivisitas_mobile;
 
 import io.flutter.embedding.android.FlutterActivity;
 

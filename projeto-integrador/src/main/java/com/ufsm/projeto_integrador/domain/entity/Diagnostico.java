@@ -40,6 +40,9 @@ public class Diagnostico implements Serializable {
     @Column(columnDefinition = "TEXT")
     private String observacoes;
 
+    @Column(name = "imagem_url")
+    private String imagemUrl;
+
     @CreationTimestamp
     @Column(name = "criado_em", nullable = false, updatable = false)
     private LocalDateTime criadoEm;

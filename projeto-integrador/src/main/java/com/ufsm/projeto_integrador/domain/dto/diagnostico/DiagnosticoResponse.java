@@ -11,12 +11,13 @@ public record DiagnosticoResponse(
         String categoria,
         Criticidade criticidade,
         String observacoes,
+        String imagemUrl,
         LocalDateTime criadoEm
 ) {
     public static DiagnosticoResponse from(Diagnostico d) {
         return new DiagnosticoResponse(
                 d.getId(), d.getVisita().getId(),
                 d.getCategoria(), d.getCriticidade(),
-                d.getObservacoes(), d.getCriadoEm());
+                d.getObservacoes(), d.getImagemUrl(), d.getCriadoEm());
     }
 }
