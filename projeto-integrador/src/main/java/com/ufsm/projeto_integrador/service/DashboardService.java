@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -41,7 +42,7 @@ public class DashboardService {
                 .findByUsuarioIdAndDataVisitaOrderByHoraVisitaAsc(userId, hoje)
                 .stream().map(VisitaResponse::from).toList();
 
-        long atrasadas  = visitaRepository.countAtrasadasPorUsuario(userId, hoje);
+        long atrasadas  = visitaRepository.countAtrasadasPorUsuario(userId, hoje, LocalTime.now());
         long pendencias = encaminhamentoRepository
                 .countByVisitaUsuarioIdAndStatus(userId, StatusEncaminhamento.PENDENTE)
                 + encaminhamentoRepository

@@ -18,8 +18,10 @@ public record EncaminhamentoResponse(
         Verificacao verificacao,
         Prioridade prioridade,
         StatusEncaminhamento status,
+        Long version,
         LocalDateTime concluidoEm,
-        LocalDateTime criadoEm
+        LocalDateTime criadoEm,
+        LocalDateTime atualizadoEm
 ) {
     public static EncaminhamentoResponse from(Encaminhamento e) {
         return new EncaminhamentoResponse(
@@ -32,7 +34,9 @@ public record EncaminhamentoResponse(
                 e.getVerificacao(),
                 e.getPrioridade(),
                 e.getStatus(),
+                e.getVersion(),
                 e.getConcluidoEm(),
-                e.getCriadoEm());
+                e.getCriadoEm(),
+                e.getAtualizadoEm());
     }
 }

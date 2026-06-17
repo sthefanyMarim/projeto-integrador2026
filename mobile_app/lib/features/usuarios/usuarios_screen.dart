@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api_error.dart';
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_screen.dart';
+import '../../core/online_only_guard.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/services/token_service.dart';
 import '../../data/services/usuario_service.dart';
@@ -88,39 +89,56 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     return _all.where((u) => u.tipo == 'ADMIN').length;
   }
 
-  Future<void> _deletar(UsuarioModel u) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Excluir usuário'),
-        content: Text(
-          'Deseja excluir "${u.nome}"? Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+  Future<void> _openCreateForm() async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'O cadastro de usuarios',
     );
-    if (confirm != true || !mounted) return;
+    if (!canProceed || !mounted) return;
+
+    await context.push('/usuarios/novo');
+    if (mounted) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _openEditForm(UsuarioModel usuario) async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A edicao de usuarios',
+    );
+    if (!canProceed || !mounted) return;
+
+    await context.push('/usuarios/${usuario.id}/editar', extra: usuario);
+    if (mounted) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _deletar(UsuarioModel u) async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A exclusao de usuarios',
+    );
+    if (!canProceed || !mounted) return;
+
+    final confirm = await AppFeedback.confirm(
+      context,
+      title: 'Excluir usuário',
+      message: 'Deseja excluir "${u.nome}"? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      isDanger: true,
+    );
+    if (!confirm || !mounted) return;
     try {
       await _service.deletar(u.id);
       await _load(silent: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuário excluído com sucesso.')),
-        );
+        AppFeedback.success(context, 'Usuário excluído com sucesso.');
       }
     } catch (e) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           e,
           title: 'Erro ao excluir',
@@ -134,7 +152,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: Column(
@@ -226,10 +244,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () async {
-                  await context.push('/usuarios/novo');
-                  _load(silent: true);
-                },
+                onTap: _openCreateForm,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -578,10 +593,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () async {
-                      await context.push('/usuarios/${u.id}/editar', extra: u);
-                      _load(silent: true);
-                    },
+                    onTap: () => _openEditForm(u),
                     child: Container(
                       width: 32,
                       height: 24,

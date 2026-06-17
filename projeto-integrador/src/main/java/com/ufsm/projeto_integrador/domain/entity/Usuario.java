@@ -55,6 +55,11 @@ public class Usuario implements Serializable {
     @Builder.Default
     private Boolean ativo = true;
 
+    @Version
+    @Column(nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
     @CreationTimestamp
     @Column(name = "criado_em", nullable = false, updatable = false)
     private LocalDateTime criadoEm;

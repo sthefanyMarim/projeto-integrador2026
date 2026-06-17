@@ -1,0 +1,13 @@
+package com.ufsm.projeto_integrador.sync.enums;
+
+public enum SyncActionType {
+    CREATE_PROPRIEDADE,
+    UPDATE_PROPRIEDADE,
+    DELETE_PROPRIEDADE,
+    CREATE_VISITA,
+    UPDATE_VISITA,
+    CANCEL_VISITA,
+    FINALIZE_VISITA,
+    CONCLUDE_ENCAMINHAMENTO,
+    CANCEL_ENCAMINHAMENTO
+}

@@ -1,13 +1,18 @@
 import '../models/usuario_model.dart';
 import '../models/page_response.dart';
 import 'api_client.dart';
+import 'network_service.dart';
+import 'offline_data_service.dart';
 import 'token_service.dart';
 
 class UsuarioService {
   UsuarioService(TokenService tokenService)
-    : _apiClient = ApiClient(tokenService);
+    : _tokenService = tokenService,
+      _apiClient = ApiClient(tokenService);
 
+  final TokenService _tokenService;
   final ApiClient _apiClient;
+  final OfflineDataService _offlineDataService = OfflineDataService.instance;
 
   Future<List<UsuarioModel>> listar({String? busca, String? tipo}) async {
     final params = <String, dynamic>{'size': 500, 'sort': 'nome'};
@@ -35,8 +40,45 @@ class UsuarioService {
   }
 
   Future<UsuarioModel> buscarMe() async {
-    final response = await _apiClient.dio.get('/api/usuarios/me');
-    return UsuarioModel.fromJson(response.data as Map<String, dynamic>);
+    try {
+      final response = await _apiClient.dio.get('/api/usuarios/me');
+      final raw = Map<String, dynamic>.from(response.data as Map);
+      await _offlineDataService.cacheCurrentUserProfile(raw);
+      final usuario = UsuarioModel.fromJson(raw);
+      await _tokenService.saveUserIdentity(
+        nome: usuario.nome,
+        userId: usuario.id,
+        tipo: usuario.tipo,
+      );
+      return usuario;
+    } catch (error) {
+      if (!NetworkService.isOfflineError(error)) {
+        rethrow;
+      }
+
+      final userInfo = await _tokenService.getUserInfo();
+      final cached = await _offlineDataService.readCachedCurrentUserProfile(
+        userInfo.userId,
+      );
+      if (cached != null) {
+        return cached;
+      }
+
+      if (userInfo.userId != null &&
+          userInfo.nome != null &&
+          userInfo.tipo != null) {
+        return UsuarioModel(
+          id: userInfo.userId!,
+          nome: userInfo.nome!,
+          matricula: '',
+          email: '',
+          tipo: userInfo.tipo!,
+          ativo: true,
+        );
+      }
+
+      rethrow;
+    }
   }
 
   Future<UsuarioModel> buscarPorId(int id) async {
@@ -51,7 +93,18 @@ class UsuarioService {
 
   Future<UsuarioModel> atualizar(int id, Map<String, dynamic> data) async {
     final response = await _apiClient.dio.put('/api/usuarios/$id', data: data);
-    return UsuarioModel.fromJson(response.data as Map<String, dynamic>);
+    final raw = Map<String, dynamic>.from(response.data as Map);
+    final usuario = UsuarioModel.fromJson(raw);
+    final current = await _tokenService.getUserInfo();
+    if (current.userId == usuario.id) {
+      await _offlineDataService.cacheCurrentUserProfile(raw);
+      await _tokenService.saveUserIdentity(
+        nome: usuario.nome,
+        userId: usuario.id,
+        tipo: usuario.tipo,
+      );
+    }
+    return usuario;
   }
 
   Future<void> alternarStatus(int id) async {

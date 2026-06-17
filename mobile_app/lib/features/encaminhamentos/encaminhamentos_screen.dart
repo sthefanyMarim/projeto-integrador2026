@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_error.dart';
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_refresh_bus.dart';
 import '../../core/app_screen.dart';
 import '../../data/models/encaminhamento_model.dart';
@@ -34,9 +34,20 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
 
   late final EncaminhamentoService _service;
   String _selectedFilter = 'Todos';
+  String? _selectedPropriedade;
   List<EncaminhamentoModel> _tasks = const [];
   bool _loading = true;
   String? _error;
+
+  List<EncaminhamentoModel> get _displayedTasks => _selectedPropriedade == null
+      ? _tasks
+      : _tasks.where((t) => t.propriedadeNome == _selectedPropriedade).toList();
+
+  List<String> get _availablePropriedades {
+    final nomes = _tasks.map((t) => t.propriedadeNome).toSet().toList();
+    nomes.sort();
+    return nomes;
+  }
 
   @override
   void initState() {
@@ -89,11 +100,12 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
   }
 
   Future<void> _concluir(EncaminhamentoModel task) async {
-    final confirmar = await _confirmDialog(
-      'Concluir encaminhamento',
-      'Deseja marcar este encaminhamento como concluído?',
+    final confirmar = await AppFeedback.confirm(
+      context,
+      title: 'Concluir encaminhamento',
+      message: 'Deseja marcar este encaminhamento como concluído?',
     );
-    if (confirmar != true || !mounted) {
+    if (!confirmar || !mounted) {
       return;
     }
 
@@ -102,30 +114,30 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
       AppRefreshBus.notifyChanged();
       await _loadTasks(silent: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Encaminhamento concluído com sucesso.'),
-          ),
-        );
+        AppFeedback.success(context, 'Encaminhamento concluído com sucesso.');
       }
     } catch (error) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           error,
-          title: 'Erro ao concluir encaminhamento',
-          fallback: 'Nao foi possivel concluir o encaminhamento.',
+          title: 'Erro ao concluir',
+          fallback: 'Não foi possível concluir o encaminhamento.',
         );
       }
     }
   }
 
   Future<void> _cancelar(EncaminhamentoModel task) async {
-    final confirmar = await _confirmDialog(
-      'Cancelar encaminhamento',
-      'Deseja cancelar este encaminhamento?',
+    final confirmar = await AppFeedback.confirm(
+      context,
+      title: 'Cancelar encaminhamento',
+      message: 'Deseja cancelar este encaminhamento?',
+      confirmLabel: 'Cancelar',
+      cancelLabel: 'Voltar',
+      isDanger: true,
     );
-    if (confirmar != true || !mounted) {
+    if (!confirmar || !mounted) {
       return;
     }
 
@@ -134,49 +146,25 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
       AppRefreshBus.notifyChanged();
       await _loadTasks(silent: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Encaminhamento cancelado.')),
-        );
+        AppFeedback.success(context, 'Encaminhamento cancelado.');
       }
     } catch (error) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           error,
-          title: 'Erro ao cancelar encaminhamento',
-          fallback: 'Nao foi possivel cancelar o encaminhamento.',
+          title: 'Erro ao cancelar',
+          fallback: 'Não foi possível cancelar o encaminhamento.',
         );
       }
     }
-  }
-
-  Future<bool?> _confirmDialog(String title, String message) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Não'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Sim'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: Column(
@@ -201,10 +189,10 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                     )
                   else if (_error != null && _tasks.isEmpty)
                     _buildErrorCard()
-                  else if (_tasks.isEmpty)
+                  else if (_displayedTasks.isEmpty)
                     _buildEmptyCard()
                   else
-                    ..._tasks.map(_buildTaskCard),
+                    ..._displayedTasks.map(_buildTaskCard),
                 ],
               ),
             ),
@@ -274,6 +262,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) {
         final bottomPad = MediaQuery.of(ctx).padding.bottom;
         return Container(
@@ -375,19 +364,123 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
     );
   }
 
+  void _openPropriedadeModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final bottomPad = MediaQuery.of(ctx).padding.bottom;
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(24, 16, 24, bottomPad + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDDDDD),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  const Text(
+                    'Filtrar por propriedade',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => Navigator.pop(ctx),
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close, color: AppColors.textMuted, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: Color(0xFFF0F0F0)),
+              const SizedBox(height: 8),
+              ..._availablePropriedades.map((nome) {
+                final isActive = nome == _selectedPropriedade;
+                return InkWell(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _selectedPropriedade = nome);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isActive
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          size: 20,
+                          color: isActive ? AppColors.primary : AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            nome,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: isActive
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isActive
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFilterBar() {
-    final isFiltered = _selectedFilter != 'Todos';
-    return Row(
+    final isStatusFiltered = _selectedFilter != 'Todos';
+    final isPropFiltered = _selectedPropriedade != null;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
       children: [
         GestureDetector(
           onTap: _openFilterModal,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isFiltered ? AppColors.primary : Colors.white,
+              color: isStatusFiltered ? AppColors.primary : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isFiltered ? Colors.transparent : AppColors.border,
+                color: isStatusFiltered ? Colors.transparent : AppColors.border,
               ),
               boxShadow: const [
                 BoxShadow(
@@ -403,28 +496,30 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                 Icon(
                   Icons.tune,
                   size: 16,
-                  color: isFiltered ? Colors.white : AppColors.textMuted,
+                  color: isStatusFiltered ? Colors.white : AppColors.textMuted,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isFiltered ? _selectedFilter : 'Filtros',
+                  isStatusFiltered ? _selectedFilter : 'Status',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isFiltered ? Colors.white : AppColors.textSecondary,
+                    color: isStatusFiltered
+                        ? Colors.white
+                        : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(width: 6),
                 Icon(
                   Icons.keyboard_arrow_down,
                   size: 16,
-                  color: isFiltered ? Colors.white : AppColors.textMuted,
+                  color: isStatusFiltered ? Colors.white : AppColors.textMuted,
                 ),
               ],
             ),
           ),
         ),
-        if (isFiltered) ...[
+        if (isStatusFiltered) ...[
           const SizedBox(width: 8),
           GestureDetector(
             onTap: () {
@@ -438,15 +533,80 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(
-                Icons.close,
-                size: 16,
-                color: AppColors.textMuted,
+              child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+            ),
+          ),
+        ],
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: _availablePropriedades.isEmpty ? null : _openPropriedadeModal,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isPropFiltered ? AppColors.primary : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isPropFiltered ? Colors.transparent : AppColors.border,
               ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: isPropFiltered ? Colors.white : AppColors.textMuted,
+                ),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 110),
+                  child: Text(
+                    isPropFiltered ? _selectedPropriedade! : 'Propriedade',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isPropFiltered
+                          ? Colors.white
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 16,
+                  color: isPropFiltered ? Colors.white : AppColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (isPropFiltered) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => setState(() => _selectedPropriedade = null),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
             ),
           ),
         ],
       ],
+      ),
     );
   }
 

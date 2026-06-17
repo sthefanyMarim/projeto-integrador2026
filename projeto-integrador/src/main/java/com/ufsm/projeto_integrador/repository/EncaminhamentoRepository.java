@@ -17,10 +17,23 @@ public interface EncaminhamentoRepository extends JpaRepository<Encaminhamento, 
 
     List<Encaminhamento> findByVisitaIdOrderByPrazoAsc(Long visitaId);
 
+    List<Encaminhamento> findByPrazoBeforeAndStatus(LocalDate hoje, StatusEncaminhamento status);
+
     long countByVisitaUsuarioIdAndStatus(Long userId, StatusEncaminhamento status);
 
-    @Modifying
-    @Query("UPDATE Encaminhamento e SET e.status = 'ATRASADO' " +
-           "WHERE e.prazo < :hoje AND e.status = 'PENDENTE'")
-    int marcarComoAtrasados(@Param("hoje") LocalDate hoje);
+    @Query("SELECT COUNT(e) FROM Encaminhamento e WHERE e.visita.dataVisita BETWEEN :inicio AND :fim")
+    long countInPeriod(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT e.status, COUNT(e) FROM Encaminhamento e WHERE e.visita.dataVisita BETWEEN :inicio AND :fim GROUP BY e.status")
+    List<Object[]> countByStatusInPeriod(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT COUNT(e) FROM Encaminhamento e WHERE e.visita.dataVisita BETWEEN :inicio AND :fim AND e.prazo IS NOT NULL")
+    long countComPrazoInPeriod(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT e FROM Encaminhamento e WHERE e.visita.propriedade.id = :propId AND e.visita.dataVisita BETWEEN :inicio AND :fim ORDER BY e.prazo ASC NULLS LAST")
+    List<Encaminhamento> findByPropriedadeAndPeriod(@Param("propId") Long propId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT e FROM Encaminhamento e WHERE e.visita.dataVisita BETWEEN :inicio AND :fim AND e.status = 'CONCLUIDO' AND e.prazo IS NOT NULL AND e.concluidoEm IS NOT NULL")
+    List<Encaminhamento> findConcluidosComPrazoInPeriod(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
 }

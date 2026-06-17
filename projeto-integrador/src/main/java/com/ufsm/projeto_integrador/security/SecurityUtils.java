@@ -24,6 +24,14 @@ public final class SecurityUtils {
         return getCurrentUser().getId();
     }
 
+    public static Long getCurrentUserIdOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof UserDetailsImpl userDetails)) {
+            return null;
+        }
+        return userDetails.getId();
+    }
+
     public static TipoUsuario getCurrentUserTipo() {
         return getCurrentUser().getTipo();
     }

@@ -18,7 +18,7 @@ class MaisScreen extends StatelessWidget {
 
         return AppScreen(
           safeAreaTop: false,
-          safeAreaBottom: false,
+          safeAreaBottom: true,
           padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

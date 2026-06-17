@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,7 @@ public class AuthService {
                 usuario.getTipo(), usuario.getNome(), usuario.getId());
     }
 
+    @Transactional
     public LoginResponse refresh(String refreshTokenStr) {
         RefreshToken rt      = refreshTokenService.verificar(refreshTokenStr);
         Usuario usuario      = rt.getUsuario();

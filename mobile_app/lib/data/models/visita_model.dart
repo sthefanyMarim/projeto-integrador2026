@@ -12,6 +12,7 @@ class VisitaModel {
     this.observacoes,
     required this.statusVisita,
     required this.urgencia,
+    this.version,
   });
 
   final int id;
@@ -26,6 +27,7 @@ class VisitaModel {
   final String? observacoes;
   final String statusVisita;
   final String urgencia;
+  final int? version;
 
   factory VisitaModel.fromJson(Map<String, dynamic> json) {
     return VisitaModel(
@@ -41,6 +43,7 @@ class VisitaModel {
       observacoes: json['observacoes'] as String?,
       statusVisita: json['statusVisita'] as String? ?? 'AGENDADA',
       urgencia: json['urgencia'] as String? ?? 'BAIXA',
+      version: json['version'] == null ? null : (json['version'] as num).toInt(),
     );
   }
 
@@ -49,15 +52,25 @@ class VisitaModel {
 
   String get tipoLabel => _enumLabel(tipoVisita);
   String get urgenciaLabel => _enumLabel(urgencia);
-  String get statusLabel => switch (statusVisita) {
-    'AGENDADA' => 'Pendente',
-    'CONCLUIDA' => 'Concluída',
-    'CANCELADA' => 'Cancelada',
-    'ATRASADA' => 'Atrasada',
-    _ => _enumLabel(statusVisita),
-  };
+  String get statusLabel {
+    if (concluida) return 'Concluída';
+    if (cancelada) return 'Cancelada';
+    if (atrasada) return 'Atrasada';
+    return 'Pendente';
+  }
 
-  bool get atrasada => statusVisita == 'ATRASADA';
+  bool get atrasada {
+    if (statusVisita == 'ATRASADA') return true;
+    if (statusVisita != 'AGENDADA') return false;
+    final parts = horaVisita.split(':');
+    final hora = int.tryParse(parts[0]) ?? 0;
+    final minuto = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+    final visitaDateTime = DateTime(
+      dataVisita.year, dataVisita.month, dataVisita.day, hora, minuto,
+    );
+    return visitaDateTime.isBefore(DateTime.now());
+  }
+
   bool get concluida => statusVisita == 'CONCLUIDA';
   bool get cancelada => statusVisita == 'CANCELADA';
   bool get podeEditar => !concluida && !cancelada;

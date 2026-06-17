@@ -14,12 +14,15 @@ public record UsuarioResponse(
         TipoUsuario tipo,
         String fotoUrl,
         Boolean ativo,
-        LocalDateTime criadoEm
+        Long version,
+        LocalDateTime criadoEm,
+        LocalDateTime atualizadoEm
 ) {
     public static UsuarioResponse from(Usuario u) {
         return new UsuarioResponse(
                 u.getId(), u.getNome(), u.getMatricula(),
                 u.getEmail(), u.getTelefone(), u.getTipo(),
-                u.getFotoUrl(), u.getAtivo(), u.getCriadoEm());
+                u.getFotoUrl(), u.getAtivo(), u.getVersion(),
+                u.getCriadoEm(), u.getAtualizadoEm());
     }
 }

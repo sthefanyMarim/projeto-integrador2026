@@ -22,7 +22,9 @@ public record VisitaResponse(
         String observacoes,
         StatusVisita statusVisita,
         Urgencia urgencia,
-        LocalDateTime criadoEm
+        Long version,
+        LocalDateTime criadoEm,
+        LocalDateTime atualizadoEm
 ) {
     public static VisitaResponse from(VisitaTecnica v) {
         return new VisitaResponse(
@@ -38,6 +40,8 @@ public record VisitaResponse(
                 v.getObservacoes(),
                 v.getStatusVisita(),
                 v.getUrgencia(),
-                v.getCriadoEm());
+                v.getVersion(),
+                v.getCriadoEm(),
+                v.getAtualizadoEm());
     }
 }

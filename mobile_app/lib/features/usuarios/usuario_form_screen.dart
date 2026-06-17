@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/env.dart';
 import '../../core/app_screen.dart';
+import '../../core/online_only_guard.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/services/imagem_service.dart';
 import '../../data/services/token_service.dart';
@@ -37,6 +38,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
   bool _loading = false;
   bool _obscureSenha = true;
   XFile? _fotoFile;
+  bool? _isAdmin;
 
   @override
   void initState() {
@@ -44,6 +46,9 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     final tokenService = TokenService();
     _service = UsuarioService(tokenService);
     _imagemService = ImagemService(tokenService);
+    tokenService.getUserInfo().then((info) {
+      if (mounted) setState(() => _isAdmin = info.tipo == 'ADMIN');
+    });
     final u = widget.usuario;
     _nomeCtrl = TextEditingController(text: u?.nome ?? '');
     _matriculaCtrl = TextEditingController(text: u?.matricula ?? '');
@@ -82,6 +87,14 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
       return;
     }
 
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: widget.isEditing
+          ? 'A edicao de usuarios'
+          : 'O cadastro de usuarios',
+    );
+    if (!canProceed || !mounted) return;
+
     setState(() => _loading = true);
 
     final data = <String, dynamic>{
@@ -110,7 +123,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
       }
 
       if (mounted) {
-        _snack(
+        AppFeedback.success(
+          context,
           widget.isEditing
               ? 'Usuário atualizado com sucesso.'
               : 'Usuário cadastrado com sucesso.',
@@ -120,7 +134,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           e,
           title: widget.isEditing ? 'Erro ao salvar' : 'Erro ao cadastrar',
@@ -174,14 +188,13 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     if (picked != null) setState(() => _fotoFile = picked);
   }
 
-  void _snack(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) => AppFeedback.warning(context, msg);
 
   @override
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: Column(
@@ -318,30 +331,40 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
 
                     _sectionLabel('PERFIL DE ACESSO'),
                     const SizedBox(height: 10),
-                    _buildRoleCard(
-                      value: 'TECNICO',
-                      icon: Icons.person_outline,
-                      iconColor: const Color(0xFF5DADE2),
-                      label: 'Técnico / Bolsista',
-                      description: 'Acessa visitas e relatórios',
+                    const Text(
+                      'Nesta fase, alteracoes de perfil e status exigem conexao com o servidor.',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildRoleCard(
-                      value: 'ADMIN',
-                      icon: Icons.star_outline,
-                      iconColor: const Color(0xFF00AE56),
-                      label: 'Administrador',
-                      description: 'Acessa gestão de usuários',
-                    ),
+                    const SizedBox(height: 10),
+                    if (_isAdmin == false && widget.isEditing)
+                      _buildRoleReadOnly()
+                    else ...[
+                      _buildRoleCard(
+                        value: 'TECNICO',
+                        icon: Icons.person_outline,
+                        iconColor: const Color(0xFF5DADE2),
+                        label: 'Técnico / Bolsista',
+                        description: 'Acessa visitas e relatórios',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildRoleCard(
+                        value: 'ADMIN',
+                        icon: Icons.star_outline,
+                        iconColor: const Color(0xFF00AE56),
+                        label: 'Administrador',
+                        description: 'Acessa gestão de usuários',
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     _fieldLabel('senha:'),
                     const SizedBox(height: 6),
                     _buildTextField(
                       _senhaCtrl,
-                      widget.isEditing
-                          ? '••••••'
-                          : 'Mínimo 6 caracteres',
+                      widget.isEditing ? '••••••' : 'Mínimo 6 caracteres',
                       obscureText: _obscureSenha,
                       suffixIcon: GestureDetector(
                         onTap: () =>
@@ -368,7 +391,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                       ),
                     const SizedBox(height: 24),
 
-                    if (widget.isEditing) ...[
+                    if (widget.isEditing && _isAdmin == true) ...[
                       _sectionLabel('STATUS DA CONTA'),
                       const SizedBox(height: 10),
                       Container(
@@ -477,6 +500,48 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
         border: Border.all(color: const Color(0xFFAED6F1), width: 1.5),
       ),
       child: const Icon(Icons.person, color: Color(0xFF5DADE2), size: 38),
+    );
+  }
+
+  Widget _buildRoleReadOnly() {
+    final isTecnico = _tipo == 'TECNICO';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isTecnico ? Icons.person_outline : Icons.star_outline,
+            size: 20,
+            color: isTecnico
+                ? const Color(0xFF5DADE2)
+                : const Color(0xFF00AE56),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isTecnico ? 'Técnico / Bolsista' : 'Administrador',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111111),
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'O perfil de acesso não pode ser alterado aqui',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

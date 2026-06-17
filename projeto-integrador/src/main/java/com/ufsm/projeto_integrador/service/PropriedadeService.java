@@ -4,9 +4,13 @@ import com.ufsm.projeto_integrador.domain.dto.common.PageResponse;
 import com.ufsm.projeto_integrador.domain.dto.propriedade.PropriedadeRequest;
 import com.ufsm.projeto_integrador.domain.dto.propriedade.PropriedadeResponse;
 import com.ufsm.projeto_integrador.domain.entity.Propriedade;
+import com.ufsm.projeto_integrador.exception.BusinessException;
 import com.ufsm.projeto_integrador.exception.ResourceNotFoundException;
 import com.ufsm.projeto_integrador.repository.PropriedadeRepository;
+import com.ufsm.projeto_integrador.repository.VisitaTecnicaRepository;
 import com.ufsm.projeto_integrador.repository.spec.PropriedadeSpecifications;
+import com.ufsm.projeto_integrador.security.SecurityUtils;
+import com.ufsm.projeto_integrador.sync.service.SyncChangeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,6 +28,8 @@ import java.util.List;
 public class PropriedadeService {
 
     private final PropriedadeRepository repository;
+    private final VisitaTecnicaRepository visitaTecnicaRepository;
+    private final SyncChangeService syncChangeService;
 
     @Cacheable(value = "propriedades", key = "'todas-ativas'")
     public List<PropriedadeResponse> listarAtivas() {
@@ -56,7 +62,9 @@ public class PropriedadeService {
                 .tipoProducao(req.tipoProducao())
                 .ativa(req.ativa() != null ? req.ativa() : true)
                 .build();
-        return PropriedadeResponse.from(repository.save(propriedade));
+        Propriedade salva = repository.save(propriedade);
+        syncChangeService.recordPropriedadeUpsert(salva, SecurityUtils.getCurrentUserIdOrNull());
+        return PropriedadeResponse.from(salva);
     }
 
     @CacheEvict(value = {"propriedades", "dashboard"}, allEntries = true)
@@ -77,14 +85,28 @@ public class PropriedadeService {
         if (req.ativa() != null) {
             propriedade.setAtiva(req.ativa());
         }
-        return PropriedadeResponse.from(repository.save(propriedade));
+        Propriedade salva = repository.save(propriedade);
+        syncChangeService.recordPropriedadeUpsert(salva, SecurityUtils.getCurrentUserIdOrNull());
+        return PropriedadeResponse.from(salva);
     }
 
     @CacheEvict(value = {"propriedades", "dashboard"}, allEntries = true)
     @Transactional
     public void deletar(Long id) {
-        findOrThrow(id);
+        Propriedade propriedade = findOrThrow(id);
+        long totalVisitas = visitaTecnicaRepository.countByPropriedadeId(id);
+        if (totalVisitas > 0) {
+            throw new BusinessException(
+                "Não é possível excluir esta propriedade pois ela possui " + totalVisitas +
+                " visita(s) registrada(s). Para removê-la do sistema, desative-a em vez de excluir."
+            );
+        }
         repository.deleteById(id);
+        syncChangeService.recordPropriedadeDelete(
+                id,
+                propriedade.getVersion(),
+                SecurityUtils.getCurrentUserIdOrNull()
+        );
     }
 
     private Propriedade findOrThrow(Long id) {

@@ -5,6 +5,7 @@ import com.ufsm.projeto_integrador.domain.entity.Usuario;
 import com.ufsm.projeto_integrador.domain.enums.TipoUsuario;
 import com.ufsm.projeto_integrador.exception.BusinessException;
 import com.ufsm.projeto_integrador.repository.UsuarioRepository;
+import com.ufsm.projeto_integrador.sync.service.SyncChangeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,6 +31,9 @@ class UsuarioServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private SyncChangeService syncChangeService;
 
     @InjectMocks
     private UsuarioService service;
@@ -79,7 +83,7 @@ class UsuarioServiceTest {
         var response = service.atualizar(5L, request);
 
         assertEquals("Tecnico Atualizado", response.nome());
-        assertEquals(TipoUsuario.ADMIN, response.tipo());
+        assertEquals(TipoUsuario.TECNICO, response.tipo());
         assertEquals("hash-antigo", usuario.getSenha());
         verify(passwordEncoder, never()).encode(any());
         assertNull(request.senha());

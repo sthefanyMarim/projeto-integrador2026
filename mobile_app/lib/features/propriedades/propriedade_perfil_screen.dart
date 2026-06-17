@@ -20,7 +20,7 @@ class PropriedadePerfilScreen extends StatelessWidget {
 
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: SingleChildScrollView(

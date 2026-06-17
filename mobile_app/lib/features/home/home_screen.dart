@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       padding: EdgeInsets.zero,
       backgroundColor: AppColors.background,
       child: RefreshIndicator(
@@ -278,14 +278,6 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () => context.push('/relatorios'),
       ),
       _AdminActionData(
-        icon: Icons.person_outline,
-        iconBg: AppColors.primarySurface,
-        iconColor: AppColors.primary,
-        title: 'Perfil',
-        subtitle: 'Ver dados da sua conta',
-        onTap: () => context.push('/perfil'),
-      ),
-      _AdminActionData(
         icon: Icons.logout,
         iconBg: AppColors.errorSurface,
         iconColor: AppColors.error,
@@ -298,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       padding: EdgeInsets.zero,
       backgroundColor: AppColors.background,
       child: RefreshIndicator(
@@ -511,20 +503,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: const BoxDecoration(
-                      color: Colors.white24,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -582,13 +560,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMetricCards(DashboardModel dashboard) {
     final cards = [
       _MetricCardData(
-        value: '${dashboard.totalPropriedades}',
-        label: 'Propriedades',
+        value: '${dashboard.visitasHoje.length}',
+        label: 'Visitas Hoje',
         color: AppColors.primary,
       ),
       _MetricCardData(
         value: '${dashboard.visitasAtrasadas}',
-        label: 'Atrasadas',
+        label: 'Visitas Atrasadas',
         color: AppColors.error,
       ),
       _MetricCardData(
@@ -598,9 +576,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ];
 
-    return Row(
-      children: cards.map((card) {
-        return Expanded(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: cards.map((card) {
+          return Expanded(
           child: Container(
             margin: EdgeInsets.only(left: card == cards.first ? 0 : 12),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
@@ -616,7 +596,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   card.value,
@@ -629,6 +609,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 6),
                 Text(
                   card.label,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
@@ -638,8 +619,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 

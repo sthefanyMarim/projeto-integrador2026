@@ -25,7 +25,9 @@ public record VisitaDetalheResponse(
         String observacoes,
         StatusVisita statusVisita,
         Urgencia urgencia,
+        Long version,
         LocalDateTime criadoEm,
+        LocalDateTime atualizadoEm,
         List<DiagnosticoResponse> diagnosticos,
         List<EncaminhamentoResponse> encaminhamentos
 ) {
@@ -43,7 +45,9 @@ public record VisitaDetalheResponse(
                 v.getObservacoes(),
                 v.getStatusVisita(),
                 v.getUrgencia(),
+                v.getVersion(),
                 v.getCriadoEm(),
+                v.getAtualizadoEm(),
                 v.getDiagnosticos().stream().map(DiagnosticoResponse::from).toList(),
                 v.getEncaminhamentos().stream().map(EncaminhamentoResponse::from).toList()
         );

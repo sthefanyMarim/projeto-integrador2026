@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_refresh_bus.dart';
+import '../../data/services/app_sync_service.dart';
 import '../../data/services/token_service.dart';
 import '../visita/agendamento_modal.dart';
 
@@ -14,7 +16,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   static const _tabs = [
     _NavTab(
       path: '/home',
@@ -43,11 +45,26 @@ class _AppShellState extends State<AppShell> {
   ];
 
   bool? _isAdmin;
+  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadRole();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isAdmin == false) {
+      _refreshAppData(pullServerData: true);
+    }
   }
 
   Future<void> _loadRole() async {
@@ -55,7 +72,59 @@ class _AppShellState extends State<AppShell> {
     if (!mounted) {
       return;
     }
-    setState(() => _isAdmin = userInfo.tipo == 'ADMIN');
+    final isAdmin = userInfo.tipo == 'ADMIN';
+    setState(() => _isAdmin = isAdmin);
+    if (!isAdmin) {
+      await _refreshAppData(pullServerData: true);
+    }
+  }
+
+  Future<void> _refreshAppData({required bool pullServerData}) async {
+    if (_syncing) {
+      return;
+    }
+
+    final syncService = AppSyncService.instance;
+    final hasPending = await syncService.hasPendingOperations();
+    final serverReachable = await syncService.isServerReachable();
+    if (!hasPending && (!pullServerData || !serverReachable)) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _syncing = true);
+
+    try {
+      var changed = false;
+      if (hasPending) {
+        changed = await syncService.synchronizePending();
+      }
+      if (pullServerData && serverReachable) {
+        changed = await syncService.primeEssentialData() || changed;
+      }
+      if (changed) {
+        AppRefreshBus.notifyChanged();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is StateError
+                  ? error.message.toString()
+                  : 'Nao foi possivel sincronizar os dados pendentes.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _syncing = false);
+      }
+    }
   }
 
   int _indexFromLocation(String location) {
@@ -65,11 +134,19 @@ class _AppShellState extends State<AppShell> {
     return 0;
   }
 
-  void _onTabTap(BuildContext context, int index) {
+  Future<void> _onTabTap(int index) async {
+    await _refreshAppData(pullServerData: false);
+    if (!mounted) {
+      return;
+    }
     context.go(_tabs[index].path);
   }
 
-  void _onFabTap(BuildContext context) {
+  Future<void> _onFabTap() async {
+    await _refreshAppData(pullServerData: false);
+    if (!mounted) {
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -88,13 +165,60 @@ class _AppShellState extends State<AppShell> {
     final selectedIndex = _indexFromLocation(location);
 
     return Scaffold(
-      body: widget.child,
+      body: Stack(
+        children: [
+          widget.child,
+          if (_syncing)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(24),
+                  child: Container(
+                    width: 320,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Atualizando dados do app',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Aguarde enquanto carregamos os dados mais recentes e enviamos o que ficou salvo offline.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: _Fab(onTap: () => _onFabTap(context)),
+      floatingActionButton: _Fab(onTap: _onFabTap),
       bottomNavigationBar: _NavBar(
         selectedIndex: selectedIndex,
         tabs: _tabs,
-        onTap: (i) => _onTabTap(context, i),
+        onTap: _onTabTap,
       ),
     );
   }

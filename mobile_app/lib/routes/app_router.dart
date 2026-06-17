@@ -7,7 +7,7 @@ import '../core/jwt_utils.dart';
 import '../data/models/auth_model.dart';
 import '../data/models/propriedade_model.dart';
 import '../data/services/token_service.dart';
-import '../features/admin/admin_coming_soon_screen.dart';
+import '../features/relatorios/relatorios_screen.dart';
 import '../features/perfil/perfil_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/shell/app_shell.dart';
@@ -45,11 +45,7 @@ GoRouter buildRouter(TokenService tokenService) {
       ),
       GoRoute(
         path: '/relatorios',
-        builder: (context, state) => const AdminComingSoonScreen(
-          title: 'Relatorios',
-          description: 'Acompanhe indicadores, historicos e resultados.',
-          icon: Icons.assessment_outlined,
-        ),
+        builder: (context, state) => const RelatoriosScreen(),
       ),
       GoRoute(
         path: '/perfil',

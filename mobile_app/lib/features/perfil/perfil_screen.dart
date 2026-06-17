@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_error.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/env.dart';
 import '../../core/app_screen.dart';
+import '../../core/online_only_guard.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/dashboard_service.dart';
@@ -49,32 +51,37 @@ class _PerfilScreenState extends State<PerfilScreen> {
     try {
       final userInfo = await _tokenService.getUserInfo();
       final isTecnico = userInfo.tipo != 'ADMIN';
+      final usuario = await _usuarioService.buscarMe();
+
+      var totalPropriedades = 0;
+      var totalVisitas = 0;
+      var totalPendencias = 0;
 
       if (isTecnico) {
-        final results = await Future.wait([
-          _usuarioService.buscarMe(),
-          _dashboardService.fetchDashboard(),
-          _visitaService.contarTotal(),
-        ]);
-        final usuario = results[0] as UsuarioModel;
-        final dashboard = results[1] as dynamic;
-        final totalVisitas = results[2] as int;
-        if (!mounted) return;
-        setState(() {
-          _usuario = usuario;
-          _totalPropriedades = dashboard.totalPropriedades as int;
-          _totalVisitas = totalVisitas;
-          _totalPendencias = dashboard.pendenciasUrgentes as int;
-          _loading = false;
-        });
-      } else {
-        final usuario = await _usuarioService.buscarMe();
-        if (!mounted) return;
-        setState(() {
-          _usuario = usuario;
-          _loading = false;
-        });
+        try {
+          final results = await Future.wait([
+            _dashboardService.fetchDashboard(),
+            _visitaService.contarTotal(),
+          ]);
+          final dashboard = results[0] as dynamic;
+          totalPropriedades = dashboard.totalPropriedades as int;
+          totalPendencias = dashboard.pendenciasUrgentes as int;
+          totalVisitas = results[1] as int;
+        } catch (_) {
+          totalVisitas = await _visitaService.contarTotal().catchError(
+            (_) => 0,
+          );
+        }
       }
+
+      if (!mounted) return;
+      setState(() {
+        _usuario = usuario;
+        _totalPropriedades = totalPropriedades;
+        _totalVisitas = totalVisitas;
+        _totalPendencias = totalPendencias;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -93,7 +100,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: _loading
@@ -256,13 +263,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     bottom: 0,
                     right: -2,
                     child: GestureDetector(
-                      onTap: () async {
-                        await context.push(
-                          '/usuarios/${u.id}/editar',
-                          extra: u,
-                        );
-                        _load();
-                      },
+                      onTap: () => _openUserEdit(u),
                       child: Container(
                         width: 26,
                         height: 26,
@@ -386,10 +387,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       _InfoRow(label: 'E-mail', value: u.email),
       if (u.telefone != null && u.telefone!.isNotEmpty)
         _InfoRow(label: 'Telefone', value: u.telefone!),
-      const _InfoRow(
-        label: 'Instituição',
-        value: 'UFSM — Colégio Politécnico',
-      ),
+      const _InfoRow(label: 'Instituição', value: 'UFSM — Colégio Politécnico'),
       if (u.criadoEm != null)
         _InfoRow(label: 'Membro desde', value: _formatDate(u.criadoEm!)),
     ];
@@ -473,10 +471,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
             iconColor: const Color(0xFF2980BA),
             title: 'Editar Perfil',
             subtitle: 'Alterar foto, nome e e-mail',
-            onTap: () async {
-              await context.push('/usuarios/${u.id}/editar', extra: u);
-              _load();
-            },
+            onTap: () => _openUserEdit(u),
           ),
           const Divider(
             height: 1,
@@ -625,7 +620,26 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
   }
 
-  void _showAlterarSenhaSheet(BuildContext context, int userId) {
+  Future<void> _openUserEdit(UsuarioModel usuario) async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A edicao de perfil',
+    );
+    if (!canProceed || !mounted) return;
+
+    await context.push('/usuarios/${usuario.id}/editar', extra: usuario);
+    if (mounted) {
+      _load();
+    }
+  }
+
+  Future<void> _showAlterarSenhaSheet(BuildContext context, int userId) async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A alteracao de senha',
+    );
+    if (!canProceed || !context.mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -636,25 +650,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Future<void> _logout(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sair da conta'),
-        content: const Text('Deseja encerrar a sessão atual?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Sair'),
-          ),
-        ],
-      ),
+    final confirm = await AppFeedback.confirm(
+      context,
+      title: 'Sair da conta',
+      message: 'Deseja encerrar a sessão atual?',
+      confirmLabel: 'Sair',
+      isDanger: true,
     );
-    if (confirm != true || !context.mounted) return;
+    if (!confirm || !context.mounted) return;
     await AuthService(_tokenService).logout();
     if (context.mounted) context.go('/login');
   }
@@ -736,34 +739,41 @@ class _AlterarSenhaSheetState extends State<_AlterarSenhaSheet> {
 
   Future<void> _submit() async {
     if (_senhaCtrl.text.length < 6) {
-      _snack('A senha deve ter no mínimo 6 caracteres.');
+      AppFeedback.warning(context, 'A senha deve ter no mínimo 6 caracteres.');
       return;
     }
     if (_senhaCtrl.text != _confirmarCtrl.text) {
-      _snack('As senhas não coincidem.');
+      AppFeedback.warning(context, 'As senhas não coincidem.');
       return;
     }
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A alteracao de senha',
+    );
+    if (!canProceed || !mounted) return;
+
     setState(() => _loading = true);
     try {
       await widget.service.atualizar(widget.userId, {'senha': _senhaCtrl.text});
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Senha alterada com sucesso.')),
-        );
+        AppFeedback.success(context, 'Senha alterada com sucesso.');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        _snack(
-          ApiError.message(e, fallback: 'Não foi possível alterar a senha.'),
+        await AppFeedback.error(
+          context,
+          message: ApiError.message(
+            e,
+            fallback: 'Não foi possível alterar a senha.',
+          ),
+          title: 'Erro ao alterar senha',
         );
       }
     }
   }
 
-  void _snack(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {

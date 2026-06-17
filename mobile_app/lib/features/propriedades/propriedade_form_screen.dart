@@ -1,10 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_screen.dart';
+import '../../core/online_only_guard.dart';
 import '../../data/models/propriedade_model.dart';
 import '../../data/services/propriedade_service.dart';
 import '../../data/services/token_service.dart';
@@ -22,18 +24,80 @@ class PropriedadeFormScreen extends StatefulWidget {
 }
 
 class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
+  static const _estados = [
+    ['AC', 'Acre'],
+    ['AL', 'Alagoas'],
+    ['AP', 'Amapá'],
+    ['AM', 'Amazonas'],
+    ['BA', 'Bahia'],
+    ['CE', 'Ceará'],
+    ['DF', 'Distrito Federal'],
+    ['ES', 'Espírito Santo'],
+    ['GO', 'Goiás'],
+    ['MA', 'Maranhão'],
+    ['MT', 'Mato Grosso'],
+    ['MS', 'Mato Grosso do Sul'],
+    ['MG', 'Minas Gerais'],
+    ['PA', 'Pará'],
+    ['PB', 'Paraíba'],
+    ['PR', 'Paraná'],
+    ['PE', 'Pernambuco'],
+    ['PI', 'Piauí'],
+    ['RJ', 'Rio de Janeiro'],
+    ['RN', 'Rio Grande do Norte'],
+    ['RS', 'Rio Grande do Sul'],
+    ['RO', 'Rondônia'],
+    ['RR', 'Roraima'],
+    ['SC', 'Santa Catarina'],
+    ['SP', 'São Paulo'],
+    ['SE', 'Sergipe'],
+    ['TO', 'Tocantins'],
+  ];
+
+  static const _stateNameToAbbr = {
+    'Acre': 'AC',
+    'Alagoas': 'AL',
+    'Amapá': 'AP',
+    'Amazonas': 'AM',
+    'Bahia': 'BA',
+    'Ceará': 'CE',
+    'Distrito Federal': 'DF',
+    'Espírito Santo': 'ES',
+    'Goiás': 'GO',
+    'Maranhão': 'MA',
+    'Mato Grosso': 'MT',
+    'Mato Grosso do Sul': 'MS',
+    'Minas Gerais': 'MG',
+    'Pará': 'PA',
+    'Paraíba': 'PB',
+    'Paraná': 'PR',
+    'Pernambuco': 'PE',
+    'Piauí': 'PI',
+    'Rio de Janeiro': 'RJ',
+    'Rio Grande do Norte': 'RN',
+    'Rio Grande do Sul': 'RS',
+    'Rondônia': 'RO',
+    'Roraima': 'RR',
+    'Santa Catarina': 'SC',
+    'São Paulo': 'SP',
+    'Sergipe': 'SE',
+    'Tocantins': 'TO',
+  };
+
   late final PropriedadeService _service;
   late final TextEditingController _nomeCtrl;
   late final TextEditingController _nomeProprietarioCtrl;
   late final TextEditingController _telefoneCtrl;
   late final TextEditingController _enderecoCtrl;
+  late final TextEditingController _complementoCtrl;
   late final TextEditingController _municipioCtrl;
-  late final TextEditingController _estadoCtrl;
   late final TextEditingController _tipoProducaoCtrl;
+  String? _selectedEstado;
   late bool _ativa;
   double? _latitude;
   double? _longitude;
   bool _loading = false;
+  bool _geocodingLoading = false;
 
   @override
   void initState() {
@@ -46,9 +110,10 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     );
     _telefoneCtrl = TextEditingController(text: p?.telefone ?? '');
     _enderecoCtrl = TextEditingController(text: p?.endereco ?? '');
+    _complementoCtrl = TextEditingController();
     _municipioCtrl = TextEditingController(text: p?.municipio ?? '');
-    _estadoCtrl = TextEditingController(text: p?.estado ?? '');
     _tipoProducaoCtrl = TextEditingController(text: p?.tipoProducao ?? '');
+    _selectedEstado = p?.estado?.isNotEmpty == true ? p!.estado : null;
     _ativa = p?.ativa ?? true;
     _latitude = p?.latitude;
     _longitude = p?.longitude;
@@ -60,29 +125,39 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     _nomeProprietarioCtrl.dispose();
     _telefoneCtrl.dispose();
     _enderecoCtrl.dispose();
+    _complementoCtrl.dispose();
     _municipioCtrl.dispose();
-    _estadoCtrl.dispose();
     _tipoProducaoCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_nomeProprietarioCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('O nome do responsável é obrigatório.'),
-        ),
-      );
+      AppFeedback.warning(context, 'O nome do responsável é obrigatório.');
       return;
     }
     if (_nomeCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('O nome da propriedade é obrigatório.')),
-      );
+      AppFeedback.warning(context, 'O nome da propriedade é obrigatório.');
       return;
     }
 
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: widget.isEditing
+          ? 'A edicao de propriedades'
+          : 'O cadastro de propriedades',
+    );
+    if (!canProceed || !mounted) return;
+
     setState(() => _loading = true);
+
+    final endereco = _enderecoCtrl.text.trim();
+    final complemento = _complementoCtrl.text.trim();
+    final enderecoFinal = endereco.isEmpty
+        ? null
+        : complemento.isEmpty
+            ? endereco
+            : '$endereco — $complemento';
 
     final data = {
       'nome': _nomeCtrl.text.trim(),
@@ -90,15 +165,11 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
       'telefone': _telefoneCtrl.text.trim().isEmpty
           ? null
           : _telefoneCtrl.text.trim(),
-      'endereco': _enderecoCtrl.text.trim().isEmpty
-          ? null
-          : _enderecoCtrl.text.trim(),
+      'endereco': enderecoFinal,
       'municipio': _municipioCtrl.text.trim().isEmpty
           ? null
           : _municipioCtrl.text.trim(),
-      'estado': _estadoCtrl.text.trim().isEmpty
-          ? null
-          : _estadoCtrl.text.trim(),
+      'estado': _selectedEstado,
       'tipoProducao': _tipoProducaoCtrl.text.trim().isEmpty
           ? null
           : _tipoProducaoCtrl.text.trim(),
@@ -111,28 +182,20 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
       if (widget.isEditing) {
         await _service.atualizar(widget.propriedade!.id, data);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Propriedade atualizada com sucesso.'),
-            ),
-          );
+          AppFeedback.success(context, 'Propriedade atualizada com sucesso.');
           context.pop(true);
         }
       } else {
         await _service.criar(data);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Propriedade cadastrada com sucesso.'),
-            ),
-          );
+          AppFeedback.success(context, 'Propriedade cadastrada com sucesso.');
           context.pop(true);
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           e,
           title: widget.isEditing ? 'Erro ao salvar' : 'Erro ao cadastrar',
@@ -142,11 +205,177 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     }
   }
 
+  Future<void> _openMapPicker() async {
+    final initial = _latitude != null && _longitude != null
+        ? LatLng(_latitude!, _longitude!)
+        : null;
+
+    final result = await Navigator.of(context, rootNavigator: true)
+        .push<LatLng>(
+          MaterialPageRoute(builder: (_) => MapPickerScreen(initial: initial)),
+        );
+
+    if (result != null && mounted) {
+      setState(() {
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+        _geocodingLoading = true;
+      });
+      await _reverseGeocode(result.latitude, result.longitude);
+    }
+  }
+
+  Future<void> _reverseGeocode(double lat, double lon) async {
+    try {
+      final dio = Dio();
+      dio.options.headers['User-Agent'] =
+          'PoliVisitas/1.0 (com.ufsm.polivisitas)';
+      final response = await dio.get(
+        'https://nominatim.openstreetmap.org/reverse',
+        queryParameters: {'lat': lat, 'lon': lon, 'format': 'json'},
+      );
+      dio.close();
+
+      if (!mounted) return;
+
+      final address =
+          response.data['address'] as Map<String, dynamic>? ?? {};
+
+      final road = address['road'] as String?;
+      final houseNumber = address['house_number'] as String?;
+      final suburb = address['suburb'] as String?;
+      final city = address['city'] as String? ??
+          address['town'] as String? ??
+          address['village'] as String? ??
+          address['county'] as String?;
+      final stateName = address['state'] as String? ?? '';
+      final stateAbbr = _stateNameToAbbr[stateName];
+
+      String endereco = '';
+      if (road != null) {
+        endereco = road;
+        if (houseNumber != null) endereco += ', $houseNumber';
+      } else if (suburb != null) {
+        endereco = suburb;
+      }
+
+      setState(() {
+        if (endereco.isNotEmpty) _enderecoCtrl.text = endereco;
+        if (city != null) _municipioCtrl.text = city;
+        if (stateAbbr != null) _selectedEstado = stateAbbr;
+        _geocodingLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _geocodingLoading = false);
+    }
+  }
+
+  void _pickEstado() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDDDDD),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Selecionar Estado',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF111111),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.55,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _estados.length,
+                  itemBuilder: (_, i) {
+                    final abbr = _estados[i][0];
+                    final nome = _estados[i][1];
+                    final isSelected = _selectedEstado == abbr;
+                    return ListTile(
+                      onTap: () {
+                        setState(() => _selectedEstado = abbr);
+                        Navigator.of(ctx).pop();
+                      },
+                      leading: SizedBox(
+                        width: 32,
+                        child: Text(
+                          abbr,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: isSelected
+                                ? AppColors.primary
+                                : const Color(0xFF444444),
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        nome,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isSelected
+                              ? AppColors.primary
+                              : const Color(0xFF111111),
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check,
+                              color: AppColors.primary,
+                              size: 20,
+                            )
+                          : null,
+                      dense: true,
+                    );
+                  },
+                ),
+              ),
+              SizedBox(
+                height: MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: Column(
@@ -213,10 +442,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     const SizedBox(height: 8),
                     _fieldLabel('Nome do Responsável *'),
                     const SizedBox(height: 6),
-                    _buildTextField(
-                      _nomeProprietarioCtrl,
-                      'Ex: João da Silva',
-                    ),
+                    _buildTextField(_nomeProprietarioCtrl, 'Ex: João da Silva'),
                     const SizedBox(height: 16),
                     _fieldLabel('Telefone de Contato'),
                     const SizedBox(height: 6),
@@ -235,6 +461,13 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     _fieldLabel('Endereço / Localização'),
                     const SizedBox(height: 6),
                     _buildTextField(_enderecoCtrl, 'Estrada Municipal, km 12'),
+                    const SizedBox(height: 10),
+                    _fieldLabel('Complemento'),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      _complementoCtrl,
+                      'Ex: próximo ao açude, portão verde...',
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,13 +490,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                             children: [
                               _fieldLabel('Estado'),
                               const SizedBox(height: 6),
-                              _buildTextField(
-                                _estadoCtrl,
-                                'RS',
-                                maxLength: 2,
-                                textCapitalization:
-                                    TextCapitalization.characters,
-                              ),
+                              _buildEstadoSelector(),
                             ],
                           ),
                         ),
@@ -280,8 +507,32 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     _sectionLabel('LOCALIZAÇÃO GPS (OPCIONAL)'),
                     const SizedBox(height: 8),
                     _buildGpsRow(context),
+                    if (_geocodingLoading) ...[
+                      const SizedBox(height: 8),
+                      const LinearProgressIndicator(
+                        minHeight: 2,
+                        color: AppColors.primary,
+                        backgroundColor: Color(0xFFE0E0E0),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Buscando endereço...',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     _sectionLabel('STATUS'),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Nesta fase, ativar ou inativar propriedades exige conexao com o servidor.',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -523,22 +774,46 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     );
   }
 
-  Future<void> _openMapPicker() async {
-    final initial = _latitude != null && _longitude != null
-        ? LatLng(_latitude!, _longitude!)
-        : null;
-
-    final result = await Navigator.of(context, rootNavigator: true)
-        .push<LatLng>(
-          MaterialPageRoute(builder: (_) => MapPickerScreen(initial: initial)),
-        );
-
-    if (result != null && mounted) {
-      setState(() {
-        _latitude = result.latitude;
-        _longitude = result.longitude;
-      });
-    }
+  Widget _buildEstadoSelector() {
+    return GestureDetector(
+      onTap: _pickEstado,
+      child: Container(
+        height: 46,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _selectedEstado ?? 'UF',
+                style: TextStyle(
+                  color: _selectedEstado != null
+                      ? const Color(0xFF111111)
+                      : AppColors.textMuted,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_drop_down,
+              color: AppColors.textMuted,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildGpsRow(BuildContext context) {
@@ -588,7 +863,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                   Text(
                     hasCoords
                         ? '${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}'
-                        : 'Toque para abrir o Google Maps',
+                        : 'Toque para abrir o mapa',
                     style: TextStyle(
                       color: hasCoords
                           ? const Color(0xFF006A18)

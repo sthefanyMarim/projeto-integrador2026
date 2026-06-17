@@ -15,5 +15,6 @@ public record VisitaRequest(
         @NotNull(message = "Tipo obrigatório") TipoVisita tipoVisita,
         String temaPrincipal,
         String observacoes,
-        Urgencia urgencia
+        Urgencia urgencia,
+        Long baseVersion
 ) {}

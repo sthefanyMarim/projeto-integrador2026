@@ -4,11 +4,15 @@ import com.ufsm.projeto_integrador.domain.dto.common.PageResponse;
 import com.ufsm.projeto_integrador.domain.dto.usuario.UsuarioRequest;
 import com.ufsm.projeto_integrador.domain.dto.usuario.UsuarioResponse;
 import com.ufsm.projeto_integrador.domain.entity.Usuario;
+import com.ufsm.projeto_integrador.domain.enums.StatusVisita;
 import com.ufsm.projeto_integrador.domain.enums.TipoUsuario;
 import com.ufsm.projeto_integrador.exception.BusinessException;
 import com.ufsm.projeto_integrador.exception.ResourceNotFoundException;
 import com.ufsm.projeto_integrador.repository.UsuarioRepository;
+import com.ufsm.projeto_integrador.repository.VisitaTecnicaRepository;
 import com.ufsm.projeto_integrador.repository.spec.UsuarioSpecifications;
+import com.ufsm.projeto_integrador.security.SecurityUtils;
+import com.ufsm.projeto_integrador.sync.service.SyncChangeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,12 +20,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Service
 @RequiredArgsConstructor
 public class UsuarioService {
 
     private final UsuarioRepository repository;
+    private final VisitaTecnicaRepository visitaTecnicaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SyncChangeService syncChangeService;
 
     public PageResponse<UsuarioResponse> listar(String busca, TipoUsuario tipo, Pageable pageable) {
         Specification<Usuario> specification = UsuarioSpecifications.comBusca(busca)
@@ -56,7 +64,9 @@ public class UsuarioService {
                 .ativo(true)
                 .build();
 
-        return UsuarioResponse.from(repository.save(usuario));
+        Usuario salvo = repository.save(usuario);
+        syncChangeService.recordUsuarioUpsert(salvo, SecurityUtils.getCurrentUserIdOrNull());
+        return UsuarioResponse.from(salvo);
     }
 
     @Transactional
@@ -74,32 +84,58 @@ public class UsuarioService {
         usuario.setMatricula(req.matricula());
         usuario.setEmail(req.email());
         usuario.setTelefone(req.telefone());
-        usuario.setTipo(req.tipo());
+        if (SecurityUtils.isAdmin()) {
+            usuario.setTipo(req.tipo());
+        }
         if (req.senha() != null && !req.senha().isBlank()) {
             usuario.setSenha(passwordEncoder.encode(req.senha()));
         }
 
-        return UsuarioResponse.from(repository.save(usuario));
+        Usuario salvo = repository.save(usuario);
+        syncChangeService.recordUsuarioUpsert(salvo, SecurityUtils.getCurrentUserIdOrNull());
+        return UsuarioResponse.from(salvo);
     }
 
     @Transactional
     public void alternarStatus(Long id) {
         Usuario usuario = findOrThrow(id);
+        boolean vaiInativar = usuario.getAtivo();
+        if (vaiInativar) {
+            long visitasFuturas = visitaTecnicaRepository
+                    .countByUsuarioIdAndStatusVisitaAndDataVisitaGreaterThanEqual(
+                            id, StatusVisita.AGENDADA, LocalDate.now());
+            if (visitasFuturas > 0) {
+                throw new BusinessException(
+                    "Não é possível inativar este técnico pois ele possui " + visitasFuturas +
+                    " visita(s) agendada(s) para os próximos dias. Cancele ou redistribua essas visitas antes de inativá-lo."
+                );
+            }
+        }
         usuario.setAtivo(!usuario.getAtivo());
-        repository.save(usuario);
+        Usuario salvo = repository.save(usuario);
+        syncChangeService.recordUsuarioUpsert(salvo, SecurityUtils.getCurrentUserIdOrNull());
     }
 
     @Transactional
     public void deletar(Long id) {
-        findOrThrow(id);
+        Usuario usuario = findOrThrow(id);
+        long totalVisitas = visitaTecnicaRepository.countByUsuarioId(id);
+        if (totalVisitas > 0) {
+            throw new BusinessException(
+                "Não é possível excluir este usuário pois ele possui " + totalVisitas +
+                " visita(s) registrada(s). Para removê-lo do sistema, inative-o em vez de excluir."
+            );
+        }
         repository.deleteById(id);
+        syncChangeService.recordUsuarioDelete(id, usuario.getVersion(), SecurityUtils.getCurrentUserIdOrNull());
     }
 
     @Transactional
     public void atualizarFoto(Long id, String fotoUrl) {
         Usuario usuario = findOrThrow(id);
         usuario.setFotoUrl(fotoUrl);
-        repository.save(usuario);
+        Usuario salvo = repository.save(usuario);
+        syncChangeService.recordUsuarioUpsert(salvo, SecurityUtils.getCurrentUserIdOrNull());
     }
 
     private Usuario findOrThrow(Long id) {

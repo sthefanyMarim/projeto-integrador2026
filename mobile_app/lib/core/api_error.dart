@@ -38,11 +38,12 @@ class ApiError {
       final fieldErrors = _fieldErrorsFromBody(data);
       final bodyMessage = _messageFromBody(data);
 
-      final message =
-          bodyMessage ??
-          (error.message != null && error.message!.trim().isNotEmpty
-              ? error.message!.trim()
-              : fallback);
+      final message = _isConnectivityError(error)
+          ? fallback
+          : bodyMessage ??
+                (error.message != null && error.message!.trim().isNotEmpty
+                    ? error.message!.trim()
+                    : fallback);
 
       return ApiErrorDetails(
         message: message,
@@ -106,5 +107,15 @@ class ApiError {
       result[key] = value;
     }
     return result;
+  }
+
+  static bool _isConnectivityError(DioException error) {
+    return switch (error.type) {
+      DioExceptionType.connectionError => true,
+      DioExceptionType.connectionTimeout => true,
+      DioExceptionType.receiveTimeout => true,
+      DioExceptionType.sendTimeout => true,
+      _ => error.response == null,
+    };
   }
 }

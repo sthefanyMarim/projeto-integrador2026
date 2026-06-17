@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../core/api_error.dart';
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_refresh_bus.dart';
 import '../../core/app_screen.dart';
+import '../../core/online_only_guard.dart';
 import '../../data/models/visita_model.dart';
 import '../../data/services/token_service.dart';
 import '../../data/services/visita_service.dart';
@@ -92,11 +93,11 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         );
       });
       if (!silent && mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           error,
           title: 'Erro ao carregar visitas',
-          fallback: 'Nao foi possivel carregar as visitas.',
+          fallback: 'Não foi possível carregar as visitas.',
         );
       }
     }
@@ -126,12 +127,10 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
   }
 
   Color _statusColor(VisitaModel visit) {
-    return switch (visit.statusVisita) {
-      'CONCLUIDA' => AppColors.success,
-      'CANCELADA' => AppColors.textMuted,
-      'ATRASADA' => AppColors.error,
-      _ => AppColors.primary,
-    };
+    if (visit.concluida) return AppColors.success;
+    if (visit.cancelada) return AppColors.textMuted;
+    if (visit.atrasada) return AppColors.error;
+    return AppColors.primary;
   }
 
   Color _urgenciaColor(String urgencia) {
@@ -144,12 +143,23 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
   }
 
   Future<void> _cancelVisit(VisitaModel visit) async {
-    final confirmed = await _confirmDialog(
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'O cancelamento de visitas',
+    );
+    if (!canProceed || !mounted) {
+      return;
+    }
+
+    final confirmed = await AppFeedback.confirm(
+      context,
       title: 'Cancelar visita',
       message: 'Deseja cancelar a visita em ${visit.propriedadeNome}?',
+      confirmLabel: 'Cancelar',
+      isDanger: true,
     );
 
-    if (confirmed != true || !mounted) {
+    if (!confirmed || !mounted) {
       return;
     }
 
@@ -160,17 +170,15 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
       AppRefreshBus.notifyChanged();
       await _loadVisits(silent: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Visita cancelada com sucesso.')),
-        );
+        AppFeedback.success(context, 'Visita cancelada com sucesso.');
       }
     } catch (error) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           error,
           title: 'Erro ao cancelar visita',
-          fallback: 'Nao foi possivel cancelar a visita.',
+          fallback: 'Não foi possível cancelar a visita.',
         );
       }
     } finally {
@@ -214,36 +222,11 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
     }
   }
 
-  Future<bool?> _confirmDialog({
-    required String title,
-    required String message,
-  }) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Voltar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Confirmar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: Column(

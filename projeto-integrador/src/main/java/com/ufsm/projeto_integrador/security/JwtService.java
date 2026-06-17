@@ -47,7 +47,9 @@ public class JwtService {
 
     public boolean isValid(String token, UserDetails userDetails) {
         String matricula = extractMatricula(token);
-        return matricula.equals(userDetails.getUsername()) && !isExpired(token);
+        return matricula.equals(userDetails.getUsername())
+                && !isExpired(token)
+                && userDetails.isEnabled();
     }
 
     private boolean isExpired(String token) {

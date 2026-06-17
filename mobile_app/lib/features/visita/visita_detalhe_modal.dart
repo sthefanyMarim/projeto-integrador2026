@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/env.dart';
 import '../../data/models/visita_detalhe_model.dart';
 import '../../data/models/visita_model.dart';
@@ -252,11 +252,11 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
             ),
             const SizedBox(height: 16),
             OutlinedButton(
-              onPressed: () => ApiErrorDialog.show(
+              onPressed: () => AppFeedback.apiError(
                 context,
                 error,
                 title: 'Erro ao carregar detalhes',
-                fallback: 'Nao foi possivel carregar os detalhes da visita.',
+                fallback: 'Não foi possível carregar os detalhes da visita.',
               ),
               child: const Text('Ver erro'),
             ),

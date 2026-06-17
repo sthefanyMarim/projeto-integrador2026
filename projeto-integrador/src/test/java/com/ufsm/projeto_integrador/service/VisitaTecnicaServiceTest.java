@@ -7,6 +7,7 @@ import com.ufsm.projeto_integrador.exception.BusinessException;
 import com.ufsm.projeto_integrador.repository.PropriedadeRepository;
 import com.ufsm.projeto_integrador.repository.VisitaTecnicaRepository;
 import com.ufsm.projeto_integrador.security.SecurityUtils;
+import com.ufsm.projeto_integrador.sync.service.SyncChangeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,6 +30,9 @@ class VisitaTecnicaServiceTest {
 
     @Mock
     private PropriedadeRepository propriedadeRepository;
+
+    @Mock
+    private SyncChangeService syncChangeService;
 
     @InjectMocks
     private VisitaTecnicaService service;

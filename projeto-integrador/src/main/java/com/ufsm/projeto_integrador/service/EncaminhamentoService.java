@@ -9,6 +9,7 @@ import com.ufsm.projeto_integrador.exception.ResourceNotFoundException;
 import com.ufsm.projeto_integrador.repository.EncaminhamentoRepository;
 import com.ufsm.projeto_integrador.repository.spec.EncaminhamentoSpecifications;
 import com.ufsm.projeto_integrador.security.SecurityUtils;
+import com.ufsm.projeto_integrador.sync.service.SyncChangeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 public class EncaminhamentoService {
 
     private final EncaminhamentoRepository repository;
+    private final SyncChangeService syncChangeService;
 
     @Transactional(readOnly = true)
     public PageResponse<EncaminhamentoResponse> listarMeus(StatusEncaminhamento status, Pageable pageable) {
@@ -46,7 +48,9 @@ public class EncaminhamentoService {
 
         enc.setStatus(StatusEncaminhamento.CONCLUIDO);
         enc.setConcluidoEm(LocalDateTime.now());
-        return EncaminhamentoResponse.from(repository.save(enc));
+        Encaminhamento salvo = repository.save(enc);
+        syncChangeService.recordEncaminhamentoUpsert(salvo, SecurityUtils.getCurrentUserIdOrNull());
+        return EncaminhamentoResponse.from(salvo);
     }
 
     @CacheEvict(value = "dashboard", allEntries = true)
@@ -59,7 +63,8 @@ public class EncaminhamentoService {
             throw new BusinessException("Encaminhamento já concluído não pode ser cancelado");
 
         enc.setStatus(StatusEncaminhamento.CANCELADO);
-        repository.save(enc);
+        Encaminhamento salvo = repository.save(enc);
+        syncChangeService.recordEncaminhamentoUpsert(salvo, SecurityUtils.getCurrentUserIdOrNull());
     }
 
     private void validarAcesso(Encaminhamento enc) {

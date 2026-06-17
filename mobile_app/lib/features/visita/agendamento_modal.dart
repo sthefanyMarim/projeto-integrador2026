@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_error.dart';
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_refresh_bus.dart';
 import '../../data/models/propriedade_model.dart';
 import '../../data/models/visita_model.dart';
@@ -135,11 +135,11 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
           fallback: 'Nao foi possivel carregar os dados do agendamento.',
         );
       });
-      await ApiErrorDialog.show(
+      await AppFeedback.apiError(
         context,
         error,
         title: 'Erro ao carregar agendamento',
-        fallback: 'Nao foi possivel carregar os dados do agendamento.',
+        fallback: 'Não foi possível carregar os dados do agendamento.',
       );
     }
   }
@@ -221,9 +221,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
     }
 
     if (_dataVisita == null || _horario == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe a data e o horario da visita.')),
-      );
+      AppFeedback.warning(context, 'Informe a data e o horário da visita.');
       return;
     }
 
@@ -243,6 +241,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
           ? null
           : _observacoesController.text.trim(),
       urgencia: _urgencia,
+      baseVersion: widget.visit?.version,
     );
 
     try {
@@ -257,14 +256,9 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
       }
 
       AppRefreshBus.notifyChanged();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _editing
-                ? 'Visita atualizada com sucesso.'
-                : 'Visita agendada com sucesso.',
-          ),
-        ),
+      AppFeedback.success(
+        context,
+        _editing ? 'Visita atualizada com sucesso.' : 'Visita agendada com sucesso.',
       );
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -272,14 +266,25 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
         return;
       }
 
-      await ApiErrorDialog.show(
-        context,
+      final errDetails = ApiError.details(
         error,
-        title: _editing ? 'Erro ao atualizar visita' : 'Erro ao agendar visita',
         fallback: _editing
-            ? 'Nao foi possivel atualizar a visita.'
-            : 'Nao foi possivel agendar a visita.',
+            ? 'Não foi possível atualizar a visita.'
+            : 'Não foi possível agendar a visita.',
       );
+
+      if (errDetails.message.contains('Conflito de horário')) {
+        await showDialog<void>(
+          context: context,
+          builder: (_) => _HorarioConflitDialog(message: errDetails.message),
+        );
+      } else {
+        await AppFeedback.error(
+          context,
+          title: _editing ? 'Erro ao atualizar visita' : 'Erro ao agendar visita',
+          message: errDetails.fullMessage,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -376,7 +381,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
           border: Border.all(color: AppColors.border),
         ),
         child: const Text(
-          'Nenhuma propriedade ativa foi encontrada para agendar visitas.',
+          'Nenhuma propriedade ativa foi encontrada. Se voce acabou de entrar no app, aguarde a atualizacao inicial ou conecte-se online para carregar as propriedades.',
           style: TextStyle(color: AppColors.textSecondary),
         ),
       );
@@ -668,6 +673,158 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
             Icon(icon, color: AppColors.textSecondary),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HorarioConflitDialog extends StatelessWidget {
+  const _HorarioConflitDialog({required this.message});
+
+  final String message;
+
+  static final _timePattern = RegExp(r'\d{2}:\d{2}');
+
+  @override
+  Widget build(BuildContext context) {
+    final times =
+        _timePattern.allMatches(message).map((m) => m.group(0)!).toList();
+    final existingTime = times.isNotEmpty ? times[0] : null;
+    final nextAvailable = times.length > 1 ? times[1] : null;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF3E0),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.event_busy_outlined,
+                color: Color(0xFFE65100),
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Conflito de Horário',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF111111),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Já existe uma visita agendada muito próxima deste horário. O intervalo mínimo entre visitas é de 45 minutos.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF666666),
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+            if (existingTime != null || nextAvailable != null) ...[
+              const SizedBox(height: 20),
+              if (existingTime != null)
+                _ConflitInfoRow(
+                  icon: Icons.schedule,
+                  label: 'Visita existente',
+                  value: existingTime,
+                  isConflict: true,
+                ),
+              if (existingTime != null && nextAvailable != null)
+                const SizedBox(height: 8),
+              if (nextAvailable != null)
+                _ConflitInfoRow(
+                  icon: Icons.check_circle_outline,
+                  label: 'Próximo disponível',
+                  value: nextAvailable,
+                  isConflict: false,
+                ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  minimumSize: const Size.fromHeight(46),
+                ),
+                child: const Text(
+                  'Escolher outro horário',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConflitInfoRow extends StatelessWidget {
+  const _ConflitInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.isConflict,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isConflict;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isConflict ? const Color(0xFFE65100) : AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
-import '../../core/env.dart';
 
 class MapPickerScreen extends StatefulWidget {
   const MapPickerScreen({super.key, this.initial});
@@ -16,43 +16,44 @@ class MapPickerScreen extends StatefulWidget {
   State<MapPickerScreen> createState() => _MapPickerScreenState();
 }
 
-class _PlaceSuggestion {
-  const _PlaceSuggestion({
-    required this.placeId,
+class _NominatimSuggestion {
+  const _NominatimSuggestion({
     required this.mainText,
     required this.secondaryText,
+    required this.lat,
+    required this.lon,
   });
 
-  final String placeId;
   final String mainText;
   final String secondaryText;
+  final double lat;
+  final double lon;
 }
 
 class _MapPickerScreenState extends State<MapPickerScreen> {
   static const _defaultCenter = LatLng(-29.6914, -53.8008);
-  static const _placesBaseUrl = 'https://maps.googleapis.com/maps/api/place';
+  static const _nominatimUrl = 'https://nominatim.openstreetmap.org/search';
 
   final _dio = Dio();
-  GoogleMapController? _mapController;
+  final _mapController = MapController();
   late LatLng _center;
 
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
-  List<_PlaceSuggestion> _suggestions = [];
+  List<_NominatimSuggestion> _suggestions = [];
   bool _loadingSuggestions = false;
-  bool _loadingDetails = false;
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _center = widget.initial ?? _defaultCenter;
+    _dio.options.headers['User-Agent'] = 'PoliVisitas/1.0 (com.ufsm.polivisitas)';
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    _mapController?.dispose();
     _searchCtrl.dispose();
     _searchFocus.dispose();
     _dio.close();
@@ -66,7 +67,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       return;
     }
     _debounce = Timer(
-      const Duration(milliseconds: 350),
+      const Duration(milliseconds: 400),
       () => _fetchSuggestions(query.trim()),
     );
   }
@@ -75,25 +76,31 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     setState(() => _loadingSuggestions = true);
     try {
       final response = await _dio.get(
-        '$_placesBaseUrl/autocomplete/json',
+        _nominatimUrl,
         queryParameters: {
-          'input': query,
-          'key': Env.mapsApiKey,
-          'language': 'pt-BR',
-          'components': 'country:br',
+          'q': query,
+          'format': 'json',
+          'limit': 5,
+          'countrycodes': 'br',
+          'addressdetails': 1,
         },
       );
 
       if (!mounted) return;
 
-      final predictions = response.data['predictions'] as List? ?? [];
+      final results = response.data as List? ?? [];
       setState(() {
-        _suggestions = predictions.map((p) {
-          final fmt = p['structured_formatting'] as Map<String, dynamic>? ?? {};
-          return _PlaceSuggestion(
-            placeId: p['place_id'] as String,
-            mainText: fmt['main_text'] as String? ?? p['description'] as String,
-            secondaryText: fmt['secondary_text'] as String? ?? '',
+        _suggestions = results.map((r) {
+          final displayName = r['display_name'] as String? ?? '';
+          final parts = displayName.split(', ');
+          final mainText = parts.isNotEmpty ? parts[0] : displayName;
+          final secondaryText =
+              parts.length > 1 ? parts.sublist(1).join(', ') : '';
+          return _NominatimSuggestion(
+            mainText: mainText,
+            secondaryText: secondaryText,
+            lat: double.tryParse(r['lat'] as String? ?? '') ?? 0,
+            lon: double.tryParse(r['lon'] as String? ?? '') ?? 0,
           );
         }).toList();
       });
@@ -104,44 +111,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     }
   }
 
-  Future<void> _selectSuggestion(_PlaceSuggestion suggestion) async {
+  void _selectSuggestion(_NominatimSuggestion suggestion) {
     _searchCtrl.text = suggestion.mainText;
     _searchFocus.unfocus();
+    final target = LatLng(suggestion.lat, suggestion.lon);
     setState(() {
       _suggestions = [];
-      _loadingDetails = true;
+      _center = target;
     });
-
-    try {
-      final response = await _dio.get(
-        '$_placesBaseUrl/details/json',
-        queryParameters: {
-          'place_id': suggestion.placeId,
-          'fields': 'geometry',
-          'key': Env.mapsApiKey,
-        },
-      );
-
-      if (!mounted) return;
-
-      final loc =
-          response.data['result']['geometry']['location']
-              as Map<String, dynamic>;
-      final target = LatLng(
-        (loc['lat'] as num).toDouble(),
-        (loc['lng'] as num).toDouble(),
-      );
-
-      await _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: target, zoom: 15),
-        ),
-      );
-      setState(() => _center = target);
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _loadingDetails = false);
-    }
+    _mapController.move(target, 15);
   }
 
   void _clearSearch() {
@@ -163,107 +141,97 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      body: Column(
         children: [
-          Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: Stack(
+          _buildHeader(context),
+          Expanded(
+            child: Stack(
+              children: [
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _center,
+                    initialZoom: 14,
+                    onMapEvent: (event) =>
+                        setState(() => _center = event.camera.center),
+                    onTap: (tapPosition, latLng) {
+                      _searchFocus.unfocus();
+                      setState(() => _suggestions = []);
+                    },
+                  ),
                   children: [
-                    GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                        target: _center,
-                        zoom: 14,
-                      ),
-                      onMapCreated: (c) => setState(() => _mapController = c),
-                      onCameraMove: (pos) =>
-                          setState(() => _center = pos.target),
-                      onTap: (_) {
-                        _searchFocus.unfocus();
-                        setState(() => _suggestions = []);
-                      },
-                      myLocationButtonEnabled: false,
-                      zoomControlsEnabled: false,
-                      mapToolbarEnabled: false,
-                      compassEnabled: false,
-                    ),
-                    IgnorePointer(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.location_pin,
-                              color: AppColors.primary,
-                              size: 52,
-                              shadows: [
-                                Shadow(
-                                  color: Color(0x55000000),
-                                  blurRadius: 10,
-                                  offset: Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              width: 10,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.black26,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (_suggestions.isNotEmpty)
-                      Positioned(
-                        top: 0,
-                        left: 16,
-                        right: 16,
-                        child: _buildSuggestionsList(),
-                      ),
-                    Positioned(
-                      right: 12,
-                      bottom: 20,
-                      child: Column(
-                        children: [
-                          _zoomButton(
-                            icon: Icons.add,
-                            onTap: () async {
-                              final zoom =
-                                  await _mapController?.getZoomLevel() ?? 14;
-                              _mapController?.animateCamera(
-                                CameraUpdate.zoomTo((zoom + 1).clamp(3, 20)),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          _zoomButton(
-                            icon: Icons.remove,
-                            onTap: () async {
-                              final zoom =
-                                  await _mapController?.getZoomLevel() ?? 14;
-                              _mapController?.animateCamera(
-                                CameraUpdate.zoomTo((zoom - 1).clamp(3, 20)),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.ufsm.polivisitas',
                     ),
                   ],
                 ),
-              ),
-              _buildBottomBar(context),
-            ],
-          ),
-          if (_loadingDetails)
-            const ColoredBox(
-              color: Color(0x33000000),
-              child: Center(child: CircularProgressIndicator()),
+                IgnorePointer(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.location_pin,
+                          color: AppColors.primary,
+                          size: 52,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x55000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          width: 10,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_suggestions.isNotEmpty)
+                  Positioned(
+                    top: 0,
+                    left: 16,
+                    right: 16,
+                    child: _buildSuggestionsList(),
+                  ),
+                Positioned(
+                  right: 12,
+                  bottom: 20,
+                  child: Column(
+                    children: [
+                      _zoomButton(
+                        icon: Icons.add,
+                        onTap: () {
+                          final zoom = _mapController.camera.zoom;
+                          _mapController.move(
+                              _center, (zoom + 1).clamp(3.0, 20.0));
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _zoomButton(
+                        icon: Icons.remove,
+                        onTap: () {
+                          final zoom = _mapController.camera.zoom;
+                          _mapController.move(
+                              _center, (zoom - 1).clamp(3.0, 20.0));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+          ),
+          _buildBottomBar(context),
         ],
       ),
     );

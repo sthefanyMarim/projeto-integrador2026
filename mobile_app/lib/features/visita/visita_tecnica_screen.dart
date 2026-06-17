@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_refresh_bus.dart';
 import '../../data/models/visita_model.dart';
 import '../../data/services/token_service.dart';
@@ -41,6 +41,18 @@ class _EncaminhamentoDraft {
   final DateTime? prazo;
 }
 
+class _PendingReturnVisit {
+  const _PendingReturnVisit({
+    required this.data,
+    required this.hora,
+    required this.urgencia,
+  });
+
+  final DateTime data;
+  final TimeOfDay hora;
+  final String urgencia;
+}
+
 class VisitaTecnicaScreen extends StatefulWidget {
   const VisitaTecnicaScreen({super.key, required this.visit});
 
@@ -75,6 +87,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
 
   final List<_DiagnosticoDraft> _diagnosticos = [];
   final List<_EncaminhamentoDraft> _encaminhamentos = [];
+  _PendingReturnVisit? _pendingReturnVisit;
 
   @override
   void initState() {
@@ -101,20 +114,18 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     switch (_step) {
       case 1:
         if (_diagnosticos.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Adicione pelo menos um diagnostico.'),
-            ),
+          AppFeedback.warning(
+            context,
+            'Adicione pelo menos um diagnóstico.',
           );
           return false;
         }
         return true;
       case 2:
         if (_encaminhamentos.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Adicione pelo menos um encaminhamento.'),
-            ),
+          AppFeedback.warning(
+            context,
+            'Adicione pelo menos um encaminhamento.',
           );
           return false;
         }
@@ -271,27 +282,80 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     setState(() => _diagnosticos.removeAt(index));
   }
 
-  void _addEncaminhamento() {
+  void _resetEncaminhamentoForm() {
+    _encaminhamentoAcaoController.clear();
+    _encaminhamentoResponsavel = null;
+    _encaminhamentoPrazo = null;
+    _encaminhamentoPrioridade = prioridadeOptions[1].value;
+    _encaminhamentoVerificacao = verificacaoOptions[0].value;
+  }
+
+  Future<void> _addEncaminhamento() async {
     if (!(_encaminhamentoFormKey.currentState?.validate() ?? false)) {
       return;
     }
 
-    setState(() {
-      _encaminhamentos.add(
-        _EncaminhamentoDraft(
-          acao: _encaminhamentoAcaoController.text.trim(),
-          prioridade: _encaminhamentoPrioridade,
-          verificacao: _encaminhamentoVerificacao,
-          responsavel: _encaminhamentoResponsavel,
-          prazo: _encaminhamentoPrazo,
-        ),
+    if (_encaminhamentoVerificacao != 'VISITA' && _encaminhamentoPrazo == null) {
+      AppFeedback.warning(
+        context,
+        'Informe um prazo para encaminhamentos de verificação por ${_encaminhamentoVerificacao.toLowerCase()}.',
       );
-      _encaminhamentoAcaoController.clear();
-      _encaminhamentoResponsavel = null;
-      _encaminhamentoPrazo = null;
-      _encaminhamentoPrioridade = prioridadeOptions[1].value;
-      _encaminhamentoVerificacao = verificacaoOptions[0].value;
+      return;
+    }
+
+    final draft = _EncaminhamentoDraft(
+      acao: _encaminhamentoAcaoController.text.trim(),
+      prioridade: _encaminhamentoPrioridade,
+      verificacao: _encaminhamentoVerificacao,
+      responsavel: _encaminhamentoResponsavel,
+      prazo: _encaminhamentoPrazo,
+    );
+
+    if (_encaminhamentoVerificacao == 'VISITA') {
+      await _showRetornoModal(draft);
+      return;
+    }
+
+    setState(() {
+      _encaminhamentos.add(draft);
+      _resetEncaminhamentoForm();
     });
+  }
+
+  Future<void> _showRetornoModal(_EncaminhamentoDraft draft) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _RetornoVisitaDialog(
+        propriedadeNome: widget.visit.propriedadeNome,
+        onAgendarDepois: () {
+          setState(() {
+            _encaminhamentos.add(draft);
+            _encaminhamentos.add(_EncaminhamentoDraft(
+              acao:
+                  'Agendar visita de retorno — ${widget.visit.propriedadeNome}',
+              prioridade: draft.prioridade,
+              verificacao: 'VISITA',
+              responsavel: 'Tecnico',
+            ));
+            _resetEncaminhamentoForm();
+          });
+          Navigator.of(ctx).pop();
+        },
+        onConcluirAgendamento: (data, hora, urgencia) {
+          setState(() {
+            _encaminhamentos.add(draft);
+            _pendingReturnVisit = _PendingReturnVisit(
+              data: data,
+              hora: hora,
+              urgencia: urgencia,
+            );
+            _resetEncaminhamentoForm();
+          });
+          Navigator.of(ctx).pop();
+        },
+      ),
+    );
   }
 
   void _removeEncaminhamento(int index) {
@@ -331,16 +395,6 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     setState(() => _saving = true);
 
     try {
-      final imageUrls = await Future.wait(
-        _diagnosticos.map((d) async {
-          if (d.imagePath == null) return null;
-          return _service.uploadDiagnosticoImagem(
-            widget.visit.id,
-            d.imagePath!,
-          );
-        }),
-      );
-
       final request = FinalizarVisitaRequest(
         diagnosticos: List.generate(
           _diagnosticos.length,
@@ -348,7 +402,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
             categoria: _diagnosticos[i].categoria,
             criticidade: _diagnosticos[i].criticidade,
             observacoes: _diagnosticos[i].observacoes,
-            imagemUrl: imageUrls[i],
+            imagePath: _diagnosticos[i].imagePath,
           ),
         ),
         encaminhamentos: _encaminhamentos
@@ -369,28 +423,36 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
 
       await _service.finalizar(widget.visit.id, request);
 
+      if (_pendingReturnVisit != null) {
+        final ret = _pendingReturnVisit!;
+        final h = ret.hora.hour.toString().padLeft(2, '0');
+        final m = ret.hora.minute.toString().padLeft(2, '0');
+        await _service.criar(SalvarVisitaRequest(
+          propriedadeId: widget.visit.propriedadeId,
+          dataVisita: ret.data,
+          horaVisita: '$h:$m:00',
+          tipoVisita: 'RETORNO',
+          urgencia: ret.urgencia,
+        ));
+      }
+
       if (!mounted) {
         return;
       }
 
       AppRefreshBus.notifyChanged();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Visita finalizada com sucesso.'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+      AppFeedback.success(context, 'Visita finalizada com sucesso.');
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      await ApiErrorDialog.show(
+      await AppFeedback.apiError(
         context,
         error,
         title: 'Erro ao finalizar visita',
-        fallback: 'Nao foi possivel finalizar a visita.',
+        fallback: 'Não foi possível finalizar a visita.',
       );
     } finally {
       if (mounted) {
@@ -997,6 +1059,9 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     final prazoLabel = _encaminhamentoPrazo == null
         ? 'dd/mm/aaaa'
         : _formatDate(_encaminhamentoPrazo!);
+    final bool prazoObrigatorio = _encaminhamentoVerificacao != 'VISITA';
+    final bool prazoAusenteVisita =
+        _encaminhamentoVerificacao == 'VISITA' && _encaminhamentoPrazo == null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -1073,7 +1138,29 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 14),
-                  _label('Prazo'),
+                  _label(prazoObrigatorio ? 'Prazo *' : 'Prazo'),
+                  if (prazoAusenteVisita)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: const [
+                          Icon(
+                            Icons.warning_amber_outlined,
+                            size: 13,
+                            color: AppColors.error,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Sem prazo: será marcado como Crítico',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   GestureDetector(
                     onTap: _selectPrazo,
                     child: Container(
@@ -1082,7 +1169,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.fieldBg,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(
+                          color: (prazoObrigatorio && _encaminhamentoPrazo == null)
+                              ? AppColors.error
+                              : AppColors.border,
+                          width: (prazoObrigatorio && _encaminhamentoPrazo == null) ? 1.5 : 1,
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -1097,10 +1189,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                               ),
                             ),
                           ),
-                          const Icon(
+                          Icon(
                             Icons.calendar_today_outlined,
                             size: 18,
-                            color: AppColors.grey400,
+                            color: (prazoObrigatorio && _encaminhamentoPrazo == null)
+                                ? AppColors.error
+                                : AppColors.grey400,
                           ),
                         ],
                       ),
@@ -1192,9 +1286,17 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
 
   Widget _buildEncaminhamentoCard(int index) {
     final item = _encaminhamentos[index];
-    final color = _prioridadeColor(item.prioridade);
-    final background = _prioridadeBackground(item.prioridade);
-    final prazo = item.prazo == null ? 'Sem prazo' : _formatDate(item.prazo!);
+    final bool semPrazoVisita =
+        item.prazo == null && item.verificacao == 'VISITA';
+    final color = semPrazoVisita
+        ? AppColors.error
+        : _prioridadeColor(item.prioridade);
+    final background = semPrazoVisita
+        ? AppColors.errorSurface
+        : _prioridadeBackground(item.prioridade);
+    final prazo = item.prazo == null
+        ? (semPrazoVisita ? 'Sem prazo — Crítico' : 'Sem prazo')
+        : _formatDate(item.prazo!);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1283,17 +1385,24 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.calendar_today_outlined,
                           size: 12,
-                          color: AppColors.textMuted,
+                          color: semPrazoVisita
+                              ? AppColors.error
+                              : AppColors.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           prazo,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            fontWeight: semPrazoVisita
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: semPrazoVisita
+                                ? AppColors.error
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -1644,6 +1753,278 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+    );
+  }
+}
+
+class _RetornoVisitaDialog extends StatefulWidget {
+  const _RetornoVisitaDialog({
+    required this.propriedadeNome,
+    required this.onAgendarDepois,
+    required this.onConcluirAgendamento,
+  });
+
+  final String propriedadeNome;
+  final VoidCallback onAgendarDepois;
+  final void Function(DateTime data, TimeOfDay hora, String urgencia)
+  onConcluirAgendamento;
+
+  @override
+  State<_RetornoVisitaDialog> createState() => _RetornoVisitaDialogState();
+}
+
+class _RetornoVisitaDialogState extends State<_RetornoVisitaDialog> {
+  bool _agendando = false;
+  DateTime? _data;
+  TimeOfDay? _hora;
+  String _urgencia = urgenciaOptions[0].value;
+
+  String _formatDate(DateTime d) {
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    return '$day/$month/${d.year}';
+  }
+
+  String _formatTime(TimeOfDay t) {
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Future<void> _pickDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _data ?? today.add(const Duration(days: 1)),
+      firstDate: today.add(const Duration(days: 1)),
+      lastDate: today.add(const Duration(days: 730)),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.fromSwatch().copyWith(
+            primary: AppColors.primary,
+            onPrimary: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _data = picked);
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _hora ?? const TimeOfDay(hour: 8, minute: 0),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          timePickerTheme: TimePickerThemeData(
+            dialHandColor: AppColors.primary,
+            dialBackgroundColor: AppColors.primarySurface,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _hora = picked);
+  }
+
+  void _confirmarAgendamento() {
+    if (_data == null || _hora == null) {
+      return;
+    }
+    widget.onConcluirAgendamento(_data!, _hora!, _urgencia);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text(
+        'Verificação por nova visita',
+        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Este encaminhamento requer uma nova visita a ${widget.propriedadeNome}. Deseja agendá-la agora?',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (!_agendando) ...[
+              OutlinedButton(
+                onPressed: widget.onAgendarDepois,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text(
+                  'Agendar depois',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () => setState(() => _agendando = true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Concluir agendamento'),
+              ),
+            ] else ...[
+              const Text(
+                'Data da visita *',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              _PickerField(
+                label: _data == null ? 'dd/mm/aaaa' : _formatDate(_data!),
+                icon: Icons.calendar_today_outlined,
+                onTap: _pickDate,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Horário *',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              _PickerField(
+                label: _hora == null ? '00:00' : _formatTime(_hora!),
+                icon: Icons.access_time_outlined,
+                onTap: _pickTime,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Urgência *',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: _urgencia,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppColors.fieldBg,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                ),
+                items: urgenciaOptions
+                    .map((o) => DropdownMenuItem(
+                          value: o.value,
+                          child: Text(o.label),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _urgencia = v);
+                },
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _data != null && _hora != null
+                    ? _confirmarAgendamento
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  disabledBackgroundColor: AppColors.grey200,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('Confirmar agendamento'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => setState(() => _agendando = false),
+                child: const Text(
+                  'Voltar',
+                  style: TextStyle(color: AppColors.textMuted),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerField extends StatelessWidget {
+  const _PickerField({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlaceholder = label == 'dd/mm/aaaa' || label == '00:00';
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.fieldBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isPlaceholder
+                      ? AppColors.textMuted
+                      : AppColors.textPrimary,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Icon(icon, color: AppColors.textSecondary, size: 18),
+          ],
+        ),
       ),
     );
   }

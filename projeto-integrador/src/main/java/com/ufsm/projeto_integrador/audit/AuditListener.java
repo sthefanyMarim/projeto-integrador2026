@@ -56,13 +56,12 @@ public class AuditListener {
             Long registroId = (Long) entity.getClass().getMethod("getId").invoke(entity);
             Map<String, Object> dados = toAuditMap(entity);
 
-            Long userId = null;
+            Long userId = SecurityUtils.getCurrentUserIdOrNull();
             String ip = null;
-            try {
-                userId = SecurityUtils.getCurrentUserId();
-                ip = SecurityUtils.getCurrentIp();
-            } catch (Exception e) {
-                log.warn("AuditListener: falha ao resolver usuário/IP para auditoria", e);
+            if (userId != null) {
+                try {
+                    ip = SecurityUtils.getCurrentIp();
+                } catch (Exception ignored) {}
             }
 
             AuditLog auditLog = AuditLog.builder()

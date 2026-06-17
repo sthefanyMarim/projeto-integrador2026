@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api_error.dart';
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../core/app_screen.dart';
+import '../../core/online_only_guard.dart';
 import '../../data/models/propriedade_model.dart';
 import '../../data/services/propriedade_service.dart';
 import '../../data/services/token_service.dart';
@@ -34,9 +35,9 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
   }
 
   Future<void> _load({bool silent = false}) async {
-    if (!silent && mounted) {
+    if (mounted) {
       setState(() {
-        _loading = true;
+        if (!silent) _loading = true;
         _error = null;
       });
     }
@@ -57,6 +58,9 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
           fallback: 'Não foi possível carregar as propriedades.',
         );
       });
+      if (silent) {
+        AppFeedback.warning(context, 'Não foi possível atualizar a lista.');
+      }
     }
   }
 
@@ -85,39 +89,59 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
     return _all.where((p) => !p.ativa).length;
   }
 
-  Future<void> _excluir(PropriedadeModel p) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Excluir propriedade'),
-        content: Text(
-          'Deseja excluir "${p.nome}"? Esta ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+  Future<void> _openCreateForm() async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'O cadastro de propriedades',
     );
-    if (confirm != true || !mounted) return;
+    if (!canProceed || !mounted) return;
+
+    await context.push('/propriedades/novo');
+    if (mounted) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _openEditForm(PropriedadeModel propriedade) async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A edicao de propriedades',
+    );
+    if (!canProceed || !mounted) return;
+
+    await context.push(
+      '/propriedades/${propriedade.id}/editar',
+      extra: propriedade,
+    );
+    if (mounted) {
+      _load(silent: true);
+    }
+  }
+
+  Future<void> _excluir(PropriedadeModel p) async {
+    final canProceed = await OnlineOnlyGuard.ensureServerReachable(
+      context,
+      actionLabel: 'A exclusao de propriedades',
+    );
+    if (!canProceed || !mounted) return;
+
+    final confirm = await AppFeedback.confirm(
+      context,
+      title: 'Excluir propriedade',
+      message: 'Deseja excluir "${p.nome}"? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      isDanger: true,
+    );
+    if (!confirm || !mounted) return;
     try {
       await _service.excluir(p.id);
       await _load(silent: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Propriedade excluída com sucesso.')),
-        );
+        AppFeedback.success(context, 'Propriedade excluída com sucesso.');
       }
     } catch (e) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           e,
           title: 'Erro ao excluir',
@@ -131,7 +155,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
   Widget build(BuildContext context) {
     return AppScreen(
       safeAreaTop: false,
-      safeAreaBottom: false,
+      safeAreaBottom: true,
       backgroundColor: AppColors.background,
       padding: EdgeInsets.zero,
       child: Column(
@@ -223,10 +247,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () async {
-                  await context.push('/propriedades/novo');
-                  _load(silent: true);
-                },
+                onTap: _openCreateForm,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -551,13 +572,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () async {
-                      await context.push(
-                        '/propriedades/${p.id}/editar',
-                        extra: p,
-                      );
-                      _load(silent: true);
-                    },
+                    onTap: () => _openEditForm(p),
                     child: Container(
                       width: 32,
                       height: 24,

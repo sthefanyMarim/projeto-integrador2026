@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api_error_dialog.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_feedback.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/token_service.dart';
 
@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) context.go('/home');
     } on DioException catch (error) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           error,
           title: 'Falha no login',
@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (error) {
       if (mounted) {
-        await ApiErrorDialog.show(
+        await AppFeedback.apiError(
           context,
           error,
           title: 'Falha no login',
