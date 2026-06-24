@@ -73,6 +73,40 @@ services:
         exit 0;
       "
 
+  # ─── API Spring Boot ──────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: polivisitas-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/polivisitas
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres123
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      AWS_S3_BUCKET_NAME: polivisitas-imagens
+      AWS_S3_REGION: us-east-1
+      AWS_S3_ACCESS_KEY: minioadmin
+      AWS_S3_SECRET_KEY: minioadmin123
+      AWS_S3_ENDPOINT: http://minio:9000
+      AWS_S3_PUBLIC_URL: http://localhost:9000
+      AWS_S3_PATH_STYLE_ACCESS: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
 volumes:
   postgres_data:
   pgadmin_data:

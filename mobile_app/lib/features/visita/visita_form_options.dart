@@ -6,70 +6,84 @@ class FormOption {
 }
 
 const List<FormOption> tipoVisitaOptions = [
-  FormOption(value: 'ROTINA', label: 'Rotina'),
-  FormOption(value: 'DIAGNOSTICO', label: 'Diagnostico'),
   FormOption(value: 'ACOMPANHAMENTO', label: 'Acompanhamento'),
-  FormOption(value: 'RETORNO', label: 'Retorno'),
+  FormOption(value: 'DIAGNOSTICO', label: 'Diagnóstico'),
   FormOption(value: 'EMERGENCIAL', label: 'Emergencial'),
+  FormOption(value: 'RETORNO', label: 'Retorno'),
+  FormOption(value: 'ROTINA', label: 'Rotina'),
 ];
 
 const List<FormOption> urgenciaOptions = [
   FormOption(value: 'BAIXA', label: 'Baixa'),
-  FormOption(value: 'MEDIA', label: 'Media'),
+  FormOption(value: 'MEDIA', label: 'Média'),
   FormOption(value: 'ALTA', label: 'Alta'),
-  FormOption(value: 'CRITICA', label: 'Critica'),
+  FormOption(value: 'CRITICA', label: 'Crítica'),
 ];
 
 const List<FormOption> criticidadeOptions = [
   FormOption(value: 'BAIXA', label: 'Baixa'),
-  FormOption(value: 'MEDIA', label: 'Media'),
+  FormOption(value: 'MEDIA', label: 'Média'),
   FormOption(value: 'ALTA', label: 'Alta'),
-  FormOption(value: 'CRITICA', label: 'Critica'),
+  FormOption(value: 'CRITICA', label: 'Crítica'),
 ];
 
 const List<FormOption> prioridadeOptions = [
   FormOption(value: 'BAIXA', label: 'Baixa'),
-  FormOption(value: 'MEDIA', label: 'Media'),
+  FormOption(value: 'MEDIA', label: 'Média'),
   FormOption(value: 'ALTA', label: 'Alta'),
-  FormOption(value: 'CRITICA', label: 'Critica'),
+  FormOption(value: 'CRITICA', label: 'Crítica'),
+];
+
+const List<FormOption> tipoProducaoOptions = [
+  FormOption(value: 'AGRICULTURA_CONVENCIONAL', label: 'Agricultura Convencional'),
+  FormOption(value: 'AGRICULTURA_FAMILIAR', label: 'Agricultura Familiar'),
+  FormOption(value: 'AGROECOLOGICA_ORGANICA', label: 'Agroecológica / Orgânica'),
+  FormOption(value: 'AVICULTURA', label: 'Avicultura'),
+  FormOption(value: 'FRUTICULTURA', label: 'Fruticultura'),
+  FormOption(value: 'HORTICULTURA', label: 'Horticultura'),
+  FormOption(value: 'PECUARIA', label: 'Pecuária'),
+  FormOption(value: 'PISCICULTURA', label: 'Piscicultura'),
+  FormOption(value: 'MISTA', label: 'Produção Mista'),
+  FormOption(value: 'SILVICULTURA', label: 'Silvicultura'),
+  FormOption(value: 'OUTROS', label: 'Outros'),
 ];
 
 const List<FormOption> verificacaoOptions = [
-  FormOption(value: 'VISITA', label: 'Nova visita'),
-  FormOption(value: 'LIGACAO', label: 'Ligacao'),
   FormOption(value: 'EMAIL', label: 'Email'),
+  FormOption(value: 'LIGACAO', label: 'Ligação'),
+  FormOption(value: 'VISITA', label: 'Nova visita'),
   FormOption(value: 'OUTRO', label: 'Outro'),
 ];
 
 const List<FormOption> temaPrincipalOptions = [
-  FormOption(value: 'Solo e Fertilidade', label: 'Solo e Fertilidade'),
-  FormOption(value: 'Irrigacao', label: 'Irrigacao'),
-  FormOption(value: 'Pragas e Doencas', label: 'Pragas e Doencas'),
-  FormOption(value: 'Plantio', label: 'Plantio'),
   FormOption(value: 'Colheita', label: 'Colheita'),
+  FormOption(value: 'Gestao', label: 'Gestão'),
   FormOption(value: 'Infraestrutura', label: 'Infraestrutura'),
+  FormOption(value: 'Irrigacao', label: 'Irrigação'),
   FormOption(value: 'Manejo Animal', label: 'Manejo Animal'),
-  FormOption(value: 'Gestao', label: 'Gestao'),
+  FormOption(value: 'Plantio', label: 'Plantio'),
+  FormOption(value: 'Pragas e Doencas', label: 'Pragas e Doenças'),
+  FormOption(value: 'Solo e Fertilidade', label: 'Solo e Fertilidade'),
   FormOption(value: 'Outro', label: 'Outro'),
 ];
 
 const List<FormOption> responsavelOptions = [
-  FormOption(value: 'Produtor', label: 'Produtor'),
-  FormOption(value: 'Tecnico', label: 'Tecnico'),
-  FormOption(value: 'Laboratorio', label: 'Laboratorio'),
   FormOption(value: 'Cooperativa', label: 'Cooperativa'),
+  FormOption(value: 'Laboratorio', label: 'Laboratório'),
+  FormOption(value: 'Produtor', label: 'Produtor'),
+  FormOption(value: 'Tecnico', label: 'Técnico'),
   FormOption(value: 'Outro', label: 'Outro'),
 ];
 
 const List<String> diagnosticoCategorias = [
-  'Solo e Fertilidade',
-  'Irrigacao',
-  'Pragas e Doencas',
-  'Plantio',
   'Colheita',
-  'Infraestrutura',
-  'Manejo Animal',
   'Gestao',
+  'Infraestrutura',
+  'Irrigacao',
+  'Manejo Animal',
+  'Plantio',
+  'Pragas e Doencas',
+  'Solo e Fertilidade',
   'Outro',
 ];
 

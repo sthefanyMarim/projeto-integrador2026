@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_screen.dart';
 import '../../data/models/propriedade_model.dart';
+import '../visita/visita_form_options.dart';
+import 'map_picker_screen.dart';
 
 class PropriedadePerfilScreen extends StatelessWidget {
   const PropriedadePerfilScreen({super.key, required this.propriedade});
@@ -81,7 +84,10 @@ class PropriedadePerfilScreen extends StatelessWidget {
                   ]),
                   if (hasGps) ...[
                     const SizedBox(height: 8),
-                    _mapButton(p.latitude!, p.longitude!),
+                    GestureDetector(
+                      onTap: () => _abrirMapa(context, p.latitude!, p.longitude!),
+                      child: _mapButton(p.latitude!, p.longitude!),
+                    ),
                   ],
                   const SizedBox(height: 16),
                   _sectionLabel('SOBRE A PROPRIEDADE'),
@@ -101,7 +107,7 @@ class PropriedadePerfilScreen extends StatelessWidget {
                     if (p.tipoProducao != null && p.tipoProducao!.isNotEmpty)
                       _InfoRow(
                         label: 'Tipo de Produção',
-                        value: p.tipoProducao!,
+                        value: optionLabel(tipoProducaoOptions, p.tipoProducao),
                       ),
                   ]),
                   const SizedBox(height: 32),
@@ -273,6 +279,17 @@ class PropriedadePerfilScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _abrirMapa(BuildContext context, double lat, double lng) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(
+          initial: LatLng(lat, lng),
+          readOnly: true,
         ),
       ),
     );

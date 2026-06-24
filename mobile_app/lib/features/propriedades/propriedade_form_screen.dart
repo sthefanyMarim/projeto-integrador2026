@@ -1,15 +1,18 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_screen.dart';
+import '../../core/form_validators.dart';
 import '../../core/online_only_guard.dart';
 import '../../data/models/propriedade_model.dart';
 import '../../data/services/propriedade_service.dart';
 import '../../data/services/token_service.dart';
+import '../visita/visita_form_options.dart';
 import 'map_picker_screen.dart';
 
 class PropriedadeFormScreen extends StatefulWidget {
@@ -91,8 +94,8 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
   late final TextEditingController _enderecoCtrl;
   late final TextEditingController _complementoCtrl;
   late final TextEditingController _municipioCtrl;
-  late final TextEditingController _tipoProducaoCtrl;
   String? _selectedEstado;
+  String? _selectedTipoProducao;
   late bool _ativa;
   double? _latitude;
   double? _longitude;
@@ -112,8 +115,8 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     _enderecoCtrl = TextEditingController(text: p?.endereco ?? '');
     _complementoCtrl = TextEditingController();
     _municipioCtrl = TextEditingController(text: p?.municipio ?? '');
-    _tipoProducaoCtrl = TextEditingController(text: p?.tipoProducao ?? '');
     _selectedEstado = p?.estado?.isNotEmpty == true ? p!.estado : null;
+    _selectedTipoProducao = knownOptionValue(tipoProducaoOptions, p?.tipoProducao);
     _ativa = p?.ativa ?? true;
     _latitude = p?.latitude;
     _longitude = p?.longitude;
@@ -127,7 +130,6 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     _enderecoCtrl.dispose();
     _complementoCtrl.dispose();
     _municipioCtrl.dispose();
-    _tipoProducaoCtrl.dispose();
     super.dispose();
   }
 
@@ -140,11 +142,23 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
       AppFeedback.warning(context, 'O nome da propriedade é obrigatório.');
       return;
     }
+    final telefone = _telefoneCtrl.text.trim();
+    if (telefone.isEmpty) {
+      AppFeedback.warning(context, 'O telefone de contato é obrigatório.');
+      return;
+    }
+    if (!telefoneRegex.hasMatch(telefone)) {
+      AppFeedback.warning(
+        context,
+        'Telefone inválido. Use o formato (55) 99999-9999 ou (55) 9999-9999.',
+      );
+      return;
+    }
 
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
       actionLabel: widget.isEditing
-          ? 'A edicao de propriedades'
+          ? 'A edição de propriedades'
           : 'O cadastro de propriedades',
     );
     if (!canProceed || !mounted) return;
@@ -162,17 +176,13 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     final data = {
       'nome': _nomeCtrl.text.trim(),
       'nomeProprietario': _nomeProprietarioCtrl.text.trim(),
-      'telefone': _telefoneCtrl.text.trim().isEmpty
-          ? null
-          : _telefoneCtrl.text.trim(),
+      'telefone': telefone,
       'endereco': enderecoFinal,
       'municipio': _municipioCtrl.text.trim().isEmpty
           ? null
           : _municipioCtrl.text.trim(),
       'estado': _selectedEstado,
-      'tipoProducao': _tipoProducaoCtrl.text.trim().isEmpty
-          ? null
-          : _tipoProducaoCtrl.text.trim(),
+      'tipoProducao': _selectedTipoProducao,
       'latitude': _latitude,
       'longitude': _longitude,
       'ativa': _ativa,
@@ -442,25 +452,39 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     const SizedBox(height: 8),
                     _fieldLabel('Nome do Responsável *'),
                     const SizedBox(height: 6),
-                    _buildTextField(_nomeProprietarioCtrl, 'Ex: João da Silva'),
+                    _buildTextField(
+                      _nomeProprietarioCtrl,
+                      'Ex: João da Silva',
+                      maxLength: 150,
+                    ),
                     const SizedBox(height: 16),
-                    _fieldLabel('Telefone de Contato'),
+                    _fieldLabel('Telefone de Contato *'),
                     const SizedBox(height: 6),
                     _buildTextField(
                       _telefoneCtrl,
                       '(55) 99999-9999',
                       keyboardType: TextInputType.phone,
+                      maxLength: 15,
+                      inputFormatters: [TelefoneInputFormatter()],
                     ),
                     const SizedBox(height: 24),
                     _sectionLabel('DADOS DA PROPRIEDADE'),
                     const SizedBox(height: 8),
                     _fieldLabel('Nome da Propriedade *'),
                     const SizedBox(height: 6),
-                    _buildTextField(_nomeCtrl, 'Ex: Sítio Santa Rosa'),
+                    _buildTextField(
+                      _nomeCtrl,
+                      'Ex: Sítio Santa Rosa',
+                      maxLength: 150,
+                    ),
                     const SizedBox(height: 16),
                     _fieldLabel('Endereço / Localização'),
                     const SizedBox(height: 6),
-                    _buildTextField(_enderecoCtrl, 'Estrada Municipal, km 12'),
+                    _buildTextField(
+                      _enderecoCtrl,
+                      'Estrada Municipal, km 12',
+                      maxLength: 255,
+                    ),
                     const SizedBox(height: 10),
                     _fieldLabel('Complemento'),
                     const SizedBox(height: 6),
@@ -478,7 +502,11 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                             children: [
                               _fieldLabel('Município'),
                               const SizedBox(height: 6),
-                              _buildTextField(_municipioCtrl, 'Santa Maria'),
+                              _buildTextField(
+                                _municipioCtrl,
+                                'Santa Maria',
+                                maxLength: 100,
+                              ),
                             ],
                           ),
                         ),
@@ -499,10 +527,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     const SizedBox(height: 16),
                     _fieldLabel('Tipo de Produção'),
                     const SizedBox(height: 6),
-                    _buildTextField(
-                      _tipoProducaoCtrl,
-                      'Ex: Orgânico, Convencional, Agroecológico...',
-                    ),
+                    _buildTipoProducaoSelector(),
                     const SizedBox(height: 24),
                     _sectionLabel('LOCALIZAÇÃO GPS (OPCIONAL)'),
                     const SizedBox(height: 8),
@@ -527,7 +552,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                     _sectionLabel('STATUS'),
                     const SizedBox(height: 8),
                     const Text(
-                      'Nesta fase, ativar ou inativar propriedades exige conexao com o servidor.',
+                      'Nesta fase, ativar ou inativar propriedades exige conexão com o servidor.',
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
@@ -739,6 +764,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
     TextInputType? keyboardType,
     int? maxLength,
     TextCapitalization textCapitalization = TextCapitalization.sentences,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       height: 46,
@@ -758,6 +784,7 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
         controller: controller,
         keyboardType: keyboardType,
         maxLength: maxLength,
+        inputFormatters: inputFormatters,
         textCapitalization: textCapitalization,
         decoration: InputDecoration(
           hintText: hint,
@@ -799,6 +826,137 @@ class _PropriedadeFormScreenState extends State<PropriedadeFormScreen> {
                 _selectedEstado ?? 'UF',
                 style: TextStyle(
                   color: _selectedEstado != null
+                      ? const Color(0xFF111111)
+                      : AppColors.textMuted,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_drop_down,
+              color: AppColors.textMuted,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickTipoProducao() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDDDDD),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Selecionar Tipo de Produção',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF111111),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.55,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: tipoProducaoOptions.length,
+                  itemBuilder: (_, i) {
+                    final option = tipoProducaoOptions[i];
+                    final isSelected = _selectedTipoProducao == option.value;
+                    return ListTile(
+                      onTap: () {
+                        setState(() => _selectedTipoProducao = option.value);
+                        Navigator.of(ctx).pop();
+                      },
+                      title: Text(
+                        option.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isSelected
+                              ? AppColors.primary
+                              : const Color(0xFF111111),
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check,
+                              color: AppColors.primary,
+                              size: 20,
+                            )
+                          : null,
+                      dense: true,
+                    );
+                  },
+                ),
+              ),
+              SizedBox(
+                height: MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTipoProducaoSelector() {
+    return GestureDetector(
+      onTap: _pickTipoProducao,
+      child: Container(
+        height: 46,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _selectedTipoProducao != null
+                    ? optionLabel(tipoProducaoOptions, _selectedTipoProducao)
+                    : 'Selecionar...',
+                style: TextStyle(
+                  color: _selectedTipoProducao != null
                       ? const Color(0xFF111111)
                       : AppColors.textMuted,
                   fontSize: 13,

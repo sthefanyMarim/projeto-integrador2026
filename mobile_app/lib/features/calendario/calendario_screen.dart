@@ -6,6 +6,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/app_refresh_bus.dart';
 import '../../core/app_screen.dart';
+import '../../core/calendar_selection_bus.dart';
 import '../../core/online_only_guard.dart';
 import '../../data/models/visita_model.dart';
 import '../../data/services/token_service.dart';
@@ -38,6 +39,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
     final today = DateUtils.dateOnly(DateTime.now());
     _focusedDay = today;
     _selectedDay = today;
+    CalendarSelectionBus.selectedDate.value = today;
     _service = VisitaService(TokenService());
     AppRefreshBus.notifier.addListener(_handleRefreshBus);
     _loadVisits();
@@ -89,7 +91,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         _loading = false;
         _error = ApiError.message(
           error,
-          fallback: 'Nao foi possivel carregar as visitas.',
+          fallback: 'Não foi possível carregar as visitas.',
         );
       });
       if (!silent && mounted) {
@@ -203,6 +205,22 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
 
   Future<void> _openVisit(VisitaModel visit) async {
     if (visit.podeFinalizar) {
+      final visitDay = DateUtils.dateOnly(visit.dataVisita);
+      final today = DateUtils.dateOnly(DateTime.now());
+      if (visitDay.isAfter(today)) {
+        final confirmed = await AppFeedback.confirm(
+          context,
+          title: 'Adiantar visita',
+          message:
+              'Esta visita está agendada para ${_formatDate(visit.dataVisita)}. '
+              'Deseja adiantar essa visita técnica e realizá-la hoje?',
+          confirmLabel: 'Adiantar',
+        );
+        if (!confirmed || !mounted) {
+          return;
+        }
+      }
+
       final changed = await Navigator.of(context, rootNavigator: true)
           .push<bool>(
             MaterialPageRoute(
@@ -344,10 +362,12 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
         onDaySelected: (selectedDay, focusedDay) {
+          final normalized = DateUtils.dateOnly(selectedDay);
           setState(() {
-            _selectedDay = DateUtils.dateOnly(selectedDay);
+            _selectedDay = normalized;
             _focusedDay = focusedDay;
           });
+          CalendarSelectionBus.selectedDate.value = normalized;
         },
         onPageChanged: (focusedDay) {
           setState(() => _focusedDay = focusedDay);
@@ -490,7 +510,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Nao foi possivel atualizar o calendario.',
+              'Não foi possível atualizar o calendário.',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -696,7 +716,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
                         optionLabel(
                           tipoVisitaOptions,
                           visit.tipoVisita,
-                          fallback: 'Tipo nao informado',
+                          fallback: 'Tipo não informado',
                         ),
                         style: const TextStyle(
                           fontSize: 12,

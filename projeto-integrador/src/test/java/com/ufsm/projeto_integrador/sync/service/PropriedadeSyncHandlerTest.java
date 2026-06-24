@@ -3,6 +3,7 @@ package com.ufsm.projeto_integrador.sync.service;
 import com.ufsm.projeto_integrador.exception.BusinessException;
 import com.ufsm.projeto_integrador.domain.dto.propriedade.PropriedadeRequest;
 import com.ufsm.projeto_integrador.domain.entity.Propriedade;
+import com.ufsm.projeto_integrador.domain.enums.TipoProducao;
 import com.ufsm.projeto_integrador.repository.PropriedadeRepository;
 import com.ufsm.projeto_integrador.service.PropriedadeService;
 import com.ufsm.projeto_integrador.sync.dto.SyncOperationRequest;
@@ -132,13 +133,13 @@ class PropriedadeSyncHandlerTest {
         return new PropriedadeRequest(
                 "Propriedade Teste",
                 "Produtor Teste",
-                "55999999999",
+                "(55) 99999-9999",
                 "Linha 1",
                 "Santa Maria",
                 "RS",
                 null,
                 null,
-                "Leite",
+                TipoProducao.PECUARIA,
                 true
         );
     }

@@ -38,7 +38,7 @@
   String get prioridadeLabel => _enumLabel(prioridade);
   String get verificacaoLabel => switch (verificacao) {
     'VISITA' => 'Nova visita',
-    'LIGACAO' => 'Ligacao',
+    'LIGACAO' => 'Ligação',
     'EMAIL' => 'Email',
     'OUTRO' => 'Outro',
     null || '' => '',

@@ -116,12 +116,16 @@ class OfflineDataService {
   Future<List<PropriedadeModel>> readCachedPropriedades({bool? ativa}) async {
     final db = await _db;
     final rows = await db.query(_propertiesTable, orderBy: 'local_id ASC');
-    return rows
+    final propriedades = rows
         .map((row) => _decodeMap(row['json'] as String))
         .whereType<Map<String, dynamic>>()
         .map(PropriedadeModel.fromJson)
         .where((item) => ativa == null || item.ativa == ativa)
         .toList();
+    propriedades.sort(
+      (a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()),
+    );
+    return propriedades;
   }
 
   Future<PropriedadeModel?> findCachedPropriedade(int id) async {

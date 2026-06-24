@@ -33,7 +33,7 @@ public class PropriedadeService {
 
     @Cacheable(value = "propriedades", key = "'todas-ativas'")
     public List<PropriedadeResponse> listarAtivas() {
-        return repository.findByAtivaTrue().stream().map(PropriedadeResponse::from).toList();
+        return repository.findByAtivaTrueOrderByNomeAsc().stream().map(PropriedadeResponse::from).toList();
     }
 
     public PageResponse<PropriedadeResponse> listar(String busca, Boolean ativa, Pageable pageable) {

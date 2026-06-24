@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -48,6 +49,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleForbidden(AccessDeniedException ex, HttpServletRequest request) {
         log.warn("Acesso negado em {}: {}", requestContext(request), ex.getMessage());
         return build(HttpStatus.FORBIDDEN, "Acesso negado");
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.warn("Corpo da requisição inválido em {}: {}", requestContext(request), ex.getMessage());
+        return ResponseEntity.status(422)
+                .body(new ErrorResponse(422,
+                        "Dados inválidos: verifique se os campos enviados (ex: tipos e status) têm valores aceitos.",
+                        null));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

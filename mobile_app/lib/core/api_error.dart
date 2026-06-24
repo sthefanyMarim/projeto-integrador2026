@@ -29,7 +29,7 @@ class ApiErrorDetails {
 class ApiError {
   static ApiErrorDetails details(
     Object error, {
-    String fallback = 'Nao foi possivel concluir a operacao.',
+    String fallback = 'Não foi possível concluir a operação.',
   }) {
     if (error is DioException) {
       final response = error.response;
@@ -57,7 +57,7 @@ class ApiError {
 
   static String message(
     Object error, {
-    String fallback = 'Nao foi possivel concluir a operacao.',
+    String fallback = 'Não foi possível concluir a operação.',
   }) {
     return details(error, fallback: fallback).fullMessage;
   }

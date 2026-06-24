@@ -8,9 +8,11 @@ import 'package:latlong2/latlong.dart';
 import '../../core/app_colors.dart';
 
 class MapPickerScreen extends StatefulWidget {
-  const MapPickerScreen({super.key, this.initial});
+  const MapPickerScreen({super.key, this.initial, this.readOnly = false});
 
   final LatLng? initial;
+
+  final bool readOnly;
 
   @override
   State<MapPickerScreen> createState() => _MapPickerScreenState();
@@ -152,12 +154,16 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   options: MapOptions(
                     initialCenter: _center,
                     initialZoom: 14,
-                    onMapEvent: (event) =>
-                        setState(() => _center = event.camera.center),
-                    onTap: (tapPosition, latLng) {
-                      _searchFocus.unfocus();
-                      setState(() => _suggestions = []);
-                    },
+                    onMapEvent: widget.readOnly
+                        ? null
+                        : (event) =>
+                            setState(() => _center = event.camera.center),
+                    onTap: widget.readOnly
+                        ? null
+                        : (tapPosition, latLng) {
+                            _searchFocus.unfocus();
+                            setState(() => _suggestions = []);
+                          },
                   ),
                   children: [
                     TileLayer(
@@ -165,38 +171,62 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.ufsm.polivisitas',
                     ),
+                    if (widget.readOnly)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _center,
+                            width: 52,
+                            height: 56,
+                            alignment: Alignment.bottomCenter,
+                            child: const Icon(
+                              Icons.location_pin,
+                              color: AppColors.primary,
+                              size: 52,
+                              shadows: [
+                                Shadow(
+                                  color: Color(0x55000000),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
-                IgnorePointer(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.location_pin,
-                          color: AppColors.primary,
-                          size: 52,
-                          shadows: [
-                            Shadow(
-                              color: Color(0x55000000),
-                              blurRadius: 10,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          width: 10,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(4),
+                if (!widget.readOnly)
+                  IgnorePointer(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.location_pin,
+                            color: AppColors.primary,
+                            size: 52,
+                            shadows: [
+                              Shadow(
+                                color: Color(0x55000000),
+                                blurRadius: 10,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                          Container(
+                            width: 10,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.black26,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                if (_suggestions.isNotEmpty)
+                if (!widget.readOnly && _suggestions.isNotEmpty)
                   Positioned(
                     top: 0,
                     left: 16,
@@ -268,20 +298,24 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Escolher Localização',
-                        style: TextStyle(
+                        widget.readOnly
+                            ? 'Localização da Propriedade'
+                            : 'Escolher Localização',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'Busque ou mova o mapa para posicionar o pin',
-                        style: TextStyle(
+                        widget.readOnly
+                            ? 'Arraste ou dê zoom para explorar o mapa'
+                            : 'Busque ou mova o mapa para posicionar o pin',
+                        style: const TextStyle(
                           color: Color(0xFFCCF2D9),
                           fontSize: 11,
                         ),
@@ -291,10 +325,12 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: _buildSearchBar(),
-            ),
+            if (!widget.readOnly)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: _buildSearchBar(),
+              ),
+            if (widget.readOnly) const SizedBox(height: 12),
           ],
         ),
       ),
@@ -473,11 +509,17 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton.icon(
-              onPressed: () => Navigator.of(context).pop(_center),
-              icon: const Icon(Icons.check, color: Colors.white, size: 18),
-              label: const Text(
-                'Confirmar localização',
-                style: TextStyle(
+              onPressed: () => widget.readOnly
+                  ? Navigator.of(context).pop()
+                  : Navigator.of(context).pop(_center),
+              icon: Icon(
+                widget.readOnly ? Icons.close : Icons.check,
+                color: Colors.white,
+                size: 18,
+              ),
+              label: Text(
+                widget.readOnly ? 'Fechar' : 'Confirmar localização',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,

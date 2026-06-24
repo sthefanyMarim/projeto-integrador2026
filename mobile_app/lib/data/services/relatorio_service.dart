@@ -20,10 +20,10 @@ class RelatorioPeriodo {
     final hoje = DateTime.now();
     final inicioMes = DateTime(hoje.year, hoje.month, 1);
     return [
-      RelatorioPeriodo(label: 'Mes atual', inicio: inicioMes, fim: hoje),
-      RelatorioPeriodo(label: 'Ultimos 3 meses', inicio: hoje.subtract(const Duration(days: 90)), fim: hoje),
-      RelatorioPeriodo(label: 'Ultimos 6 meses', inicio: hoje.subtract(const Duration(days: 180)), fim: hoje),
-      RelatorioPeriodo(label: 'Ultimo ano', inicio: hoje.subtract(const Duration(days: 365)), fim: hoje),
+      RelatorioPeriodo(label: 'Mês atual', inicio: inicioMes, fim: hoje),
+      RelatorioPeriodo(label: 'Últimos 3 meses', inicio: hoje.subtract(const Duration(days: 90)), fim: hoje),
+      RelatorioPeriodo(label: 'Últimos 6 meses', inicio: hoje.subtract(const Duration(days: 180)), fim: hoje),
+      RelatorioPeriodo(label: 'Último ano', inicio: hoje.subtract(const Duration(days: 365)), fim: hoje),
     ];
   }
 

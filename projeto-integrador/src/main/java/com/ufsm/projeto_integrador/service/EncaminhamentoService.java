@@ -61,6 +61,8 @@ public class EncaminhamentoService {
 
         if (enc.getStatus() == StatusEncaminhamento.CONCLUIDO)
             throw new BusinessException("Encaminhamento já concluído não pode ser cancelado");
+        if (enc.getStatus() == StatusEncaminhamento.CANCELADO)
+            throw new BusinessException("Encaminhamento já cancelado");
 
         enc.setStatus(StatusEncaminhamento.CANCELADO);
         Encaminhamento salvo = repository.save(enc);

@@ -623,7 +623,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Future<void> _openUserEdit(UsuarioModel usuario) async {
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
-      actionLabel: 'A edicao de perfil',
+      actionLabel: 'A edição de perfil',
     );
     if (!canProceed || !mounted) return;
 

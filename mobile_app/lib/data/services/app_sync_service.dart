@@ -111,7 +111,7 @@ class AppSyncService {
       if (status == 'FAILED' || status == 'CONFLICT') {
         errorMessage ??=
             (result['message'] as String?) ??
-            'Nao foi possivel concluir a sincronizacao.';
+            'Não foi possível concluir a sincronização.';
       }
     }
 
@@ -143,8 +143,6 @@ class AppSyncService {
         await action();
         refreshedAny = true;
       } catch (_) {
-        // Mantem o app utilizavel mesmo se uma fonte falhar; o cache
-        // continua sendo preenchido pelo que conseguir responder.
       }
     }
 
@@ -194,8 +192,6 @@ class AppSyncService {
       try {
         await _visitaService.buscarDetalhes(visit.id);
       } catch (_) {
-        // Mantem o restante do bootstrap funcionando mesmo se algum detalhe
-        // historico falhar.
       }
     }
   }

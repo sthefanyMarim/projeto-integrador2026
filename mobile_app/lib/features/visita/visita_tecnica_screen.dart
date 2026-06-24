@@ -82,7 +82,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
   XFile? _diagnosticoImagem;
   String _encaminhamentoPrioridade = prioridadeOptions[1].value;
   String _encaminhamentoVerificacao = verificacaoOptions[0].value;
-  String? _encaminhamentoResponsavel;
+  String? _encaminhamentoResponsavel = responsavelOptions[0].value;
   DateTime? _encaminhamentoPrazo;
 
   final List<_DiagnosticoDraft> _diagnosticos = [];
@@ -284,11 +284,14 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
 
   void _resetEncaminhamentoForm() {
     _encaminhamentoAcaoController.clear();
-    _encaminhamentoResponsavel = null;
+    _encaminhamentoResponsavel = responsavelOptions[0].value;
     _encaminhamentoPrazo = null;
     _encaminhamentoPrioridade = prioridadeOptions[1].value;
     _encaminhamentoVerificacao = verificacaoOptions[0].value;
   }
+
+  bool get _jaTemEncaminhamentoDeRetorno =>
+      _encaminhamentos.any((e) => e.verificacao == 'VISITA');
 
   Future<void> _addEncaminhamento() async {
     if (!(_encaminhamentoFormKey.currentState?.validate() ?? false)) {
@@ -299,6 +302,14 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
       AppFeedback.warning(
         context,
         'Informe um prazo para encaminhamentos de verificação por ${_encaminhamentoVerificacao.toLowerCase()}.',
+      );
+      return;
+    }
+
+    if (_encaminhamentoVerificacao == 'VISITA' && _jaTemEncaminhamentoDeRetorno) {
+      AppFeedback.warning(
+        context,
+        'Já existe um encaminhamento de retorno (nova visita) registrado para esta visita.',
       );
       return;
     }
@@ -334,7 +345,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
             _encaminhamentos.add(_EncaminhamentoDraft(
               acao:
                   'Agendar visita de retorno — ${widget.visit.propriedadeNome}',
-              prioridade: draft.prioridade,
+              prioridade: 'CRITICA',
               verificacao: 'VISITA',
               responsavel: 'Tecnico',
             ));
@@ -653,7 +664,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                     ? 'Salvando...'
                     : _step == 2
                     ? 'Finalizar'
-                    : 'Proximo',
+                    : 'Próximo',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -672,12 +683,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     final tipo = optionLabel(
       tipoVisitaOptions,
       visit.tipoVisita,
-      fallback: 'Nao informado',
+      fallback: 'Não informado',
     );
     final urgencia = optionLabel(
       urgenciaOptions,
       visit.urgencia,
-      fallback: 'Nao informada',
+      fallback: 'Não informada',
     );
 
     return SingleChildScrollView(
@@ -709,7 +720,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                 _label('Propriedade Rural'),
                 _readonlyField(visit.propriedadeNome),
                 const SizedBox(height: 12),
-                _label('Tecnico responsavel'),
+                _label('Técnico responsável'),
                 _readonlyField(visit.usuarioNome),
                 const SizedBox(height: 12),
                 Row(
@@ -728,26 +739,19 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _label('Horario'),
+                          _label('Horário'),
                           _readonlyField(visit.horaCurta),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildStatusChip(tipo, AppColors.primary),
-                    _buildStatusChip(urgencia, _urgenciaColor(visit.urgencia)),
-                    _buildStatusChip(
-                      visit.statusLabel,
-                      _statusColor(visit.statusVisita),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 12),
+                _label('Tipo de visita'),
+                _readonlyField(tipo),
+                const SizedBox(height: 12),
+                _label('Urgência'),
+                _readonlyField(urgencia),
                 if (visit.temaPrincipal != null &&
                     visit.temaPrincipal!.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -757,7 +761,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                 if (visit.observacoes != null &&
                     visit.observacoes!.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  _label('Observacoes do agendamento'),
+                  _label('Observações do agendamento'),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
@@ -794,12 +798,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _label('Observacoes gerais'),
+                _label('Observações gerais'),
                 TextFormField(
                   controller: _observacoesGeraisController,
                   maxLines: 4,
                   decoration: _inputDecoration(
-                    'Descreva observacoes finais, orientacoes e contexto da visita.',
+                    'Descreva observações finais, orientações e contexto da visita.',
                   ),
                 ),
               ],
@@ -818,7 +822,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Diagnosticos da visita',
+            'Diagnósticos da visita',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -827,7 +831,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Adicione os diagnosticos identificados durante a visita.',
+            'Adicione os diagnósticos identificados durante a visita.',
             style: TextStyle(fontSize: 13, color: AppColors.textMuted),
           ),
           const SizedBox(height: 16),
@@ -868,7 +872,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                           (item) => DropdownMenuItem<String>(
                             value: item,
                             child: Text(
-                              item,
+                              optionLabel(temaPrincipalOptions, item, fallback: item),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -889,12 +893,12 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  _label('Observacoes'),
+                  _label('Observações'),
                   TextFormField(
                     controller: _diagnosticoObservacoesController,
                     maxLines: 3,
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Descreva o diagnostico.'
+                        ? 'Descreva o diagnóstico.'
                         : null,
                     decoration: _inputDecoration(
                       'Descreva o que foi observado na visita.',
@@ -910,7 +914,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                       onPressed: _addDiagnostico,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text(
-                        'Adicionar Diagnostico',
+                        'Adicionar Diagnóstico',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -992,7 +996,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            item.categoria,
+                            optionLabel(temaPrincipalOptions, item.categoria, fallback: item.categoria),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -1062,6 +1066,8 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     final bool prazoObrigatorio = _encaminhamentoVerificacao != 'VISITA';
     final bool prazoAusenteVisita =
         _encaminhamentoVerificacao == 'VISITA' && _encaminhamentoPrazo == null;
+    final bool retornoJaRegistrado =
+        _encaminhamentoVerificacao == 'VISITA' && _jaTemEncaminhamentoDeRetorno;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -1078,7 +1084,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Registre as acoes que precisam de acompanhamento.',
+            'Registre as ações que precisam de acompanhamento.',
             style: TextStyle(fontSize: 13, color: AppColors.textMuted),
           ),
           const SizedBox(height: 16),
@@ -1100,19 +1106,19 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _label('Acao de encaminhamento *'),
+                  _label('Ação de encaminhamento *'),
                   TextFormField(
                     controller: _encaminhamentoAcaoController,
                     maxLines: 3,
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Descreva a acao.'
+                        ? 'Descreva a ação.'
                         : null,
                     decoration: _inputDecoration(
-                      'Ex.: solicitar analise, agendar retorno, orientar correcao.',
+                      'Ex.: solicitar análise, agendar retorno, orientar correção.',
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _label('Responsavel'),
+                  _label('Responsável'),
                   DropdownButtonFormField<String>(
                     initialValue: _encaminhamentoResponsavel,
                     isExpanded: true,
@@ -1121,7 +1127,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         setState(() => _encaminhamentoResponsavel = value),
                     decoration: _dropdownDecoration(),
                     hint: const Text(
-                      'Selecione o responsavel',
+                      'Selecione o responsável',
                       style: TextStyle(color: AppColors.textMuted),
                     ),
                     items: responsavelOptions
@@ -1151,7 +1157,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                           ),
                           SizedBox(width: 4),
                           Text(
-                            'Sem prazo: será marcado como Crítico',
+                            'Sem prazo',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.error,
@@ -1201,7 +1207,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _label('Forma de verificacao'),
+                  _label('Forma de verificação'),
                   DropdownButtonFormField<String>(
                     initialValue: _encaminhamentoVerificacao,
                     isExpanded: true,
@@ -1225,6 +1231,30 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         )
                         .toList(),
                   ),
+                  if (retornoJaRegistrado)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: const [
+                          Icon(
+                            Icons.warning_amber_outlined,
+                            size: 13,
+                            color: AppColors.error,
+                          ),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Já existe um encaminhamento de retorno (nova visita) para esta visita.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 14),
                   _label('Prioridade'),
                   const SizedBox(height: 8),
@@ -1241,7 +1271,7 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                   SizedBox(
                     height: 46,
                     child: OutlinedButton.icon(
-                      onPressed: _addEncaminhamento,
+                      onPressed: retornoJaRegistrado ? null : _addEncaminhamento,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text(
                         'Adicionar Encaminhamento',
@@ -1373,7 +1403,9 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            item.responsavel ?? 'Responsavel nao informado',
+                            item.responsavel == null
+                                ? 'Responsável não informado'
+                                : optionLabel(responsavelOptions, item.responsavel, fallback: item.responsavel!),
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
@@ -1584,24 +1616,6 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
     );
   }
 
-  Widget _buildStatusChip(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _countBadge(int value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1618,24 +1632,6 @@ class _VisitaTecnicaScreenState extends State<VisitaTecnicaScreen> {
         ),
       ),
     );
-  }
-
-  Color _statusColor(String status) {
-    return switch (status) {
-      'CONCLUIDA' => AppColors.success,
-      'CANCELADA' => AppColors.textMuted,
-      'ATRASADA' => AppColors.error,
-      _ => AppColors.primary,
-    };
-  }
-
-  Color _urgenciaColor(String urgencia) {
-    return switch (urgencia) {
-      'CRITICA' => AppColors.error,
-      'ALTA' => AppColors.warning,
-      'MEDIA' => AppColors.info,
-      _ => AppColors.success,
-    };
   }
 
   Color _criticidadeColor(String value) {
@@ -1882,7 +1878,7 @@ class _RetornoVisitaDialogState extends State<_RetornoVisitaDialog> {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text('Concluir agendamento'),
+                child: const Text('Escolher data e horário'),
               ),
             ] else ...[
               const Text(

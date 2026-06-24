@@ -13,6 +13,7 @@ import com.ufsm.projeto_integrador.domain.enums.Verificacao;
 import com.ufsm.projeto_integrador.exception.BusinessException;
 import com.ufsm.projeto_integrador.exception.ResourceNotFoundException;
 import com.ufsm.projeto_integrador.repository.PropriedadeRepository;
+import com.ufsm.projeto_integrador.repository.UsuarioRepository;
 import com.ufsm.projeto_integrador.repository.VisitaTecnicaRepository;
 import com.ufsm.projeto_integrador.repository.spec.VisitaTecnicaSpecifications;
 import com.ufsm.projeto_integrador.security.SecurityUtils;
@@ -41,6 +42,7 @@ public class VisitaTecnicaService {
 
     private final VisitaTecnicaRepository repository;
     private final PropriedadeRepository propriedadeRepository;
+    private final UsuarioRepository usuarioRepository;
     private final SyncChangeService syncChangeService;
 
     @Value("${app.visita.duracao-minutos:45}")
@@ -93,8 +95,7 @@ public class VisitaTecnicaService {
         validarHorarioPassado(req.dataVisita(), req.horaVisita());
         validarConflito(userId, req.dataVisita(), req.horaVisita(), null);
 
-        Usuario usuario = new Usuario();
-        usuario.setId(userId);
+        Usuario usuario = usuarioRepository.getReferenceById(userId);
 
         VisitaTecnica visita = VisitaTecnica.builder()
                 .usuario(usuario)
@@ -168,6 +169,9 @@ public class VisitaTecnicaService {
         });
 
         req.encaminhamentos().forEach(e -> {
+            if (e.verificacao() == null) {
+                throw new BusinessException("Forma de verificação obrigatória para o encaminhamento.");
+            }
             if (e.verificacao() != Verificacao.VISITA && e.prazo() == null) {
                 throw new BusinessException(
                     "Encaminhamento de verificação por " + e.verificacao().name().toLowerCase() +

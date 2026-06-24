@@ -11,6 +11,7 @@ import '../../data/models/visita_model.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/dashboard_service.dart';
 import '../../data/services/token_service.dart';
+import '../visita/visita_form_options.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   bool _isAdmin = false;
-  String _nomeUsuario = 'Usuario';
+  String _nomeUsuario = 'Usuário';
 
   static const _weekdays = [
     'Segunda',
@@ -95,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _isAdmin = isAdmin;
-        _nomeUsuario = nome == null || nome.isEmpty ? 'Usuario' : nome;
+        _nomeUsuario = nome == null || nome.isEmpty ? 'Usuário' : nome;
       });
 
       if (isAdmin) {
@@ -116,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
         _error = ApiError.message(
           error,
-          fallback: 'Nao foi possivel carregar seus dados.',
+          fallback: 'Não foi possível carregar seus dados.',
         );
       });
     }
@@ -784,7 +785,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       data.responsavel!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Responsável: ${data.responsavel}',
+                      'Responsável: ${optionLabel(responsavelOptions, data.responsavel, fallback: data.responsavel ?? "")}',
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,

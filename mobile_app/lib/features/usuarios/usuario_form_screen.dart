@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -8,6 +9,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_feedback.dart';
 import '../../core/env.dart';
 import '../../core/app_screen.dart';
+import '../../core/form_validators.dart';
 import '../../core/online_only_guard.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/services/imagem_service.dart';
@@ -78,8 +80,18 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
       _snack('A matrícula é obrigatória.');
       return;
     }
-    if (_emailCtrl.text.trim().isEmpty) {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
       _snack('O e-mail é obrigatório.');
+      return;
+    }
+    if (!emailRegex.hasMatch(email)) {
+      _snack('E-mail inválido. Ex: usuario@gmail.com ou usuario@acad.ufsm.br');
+      return;
+    }
+    final telefone = _telefoneCtrl.text.trim();
+    if (telefone.isNotEmpty && !telefoneRegex.hasMatch(telefone)) {
+      _snack('Telefone inválido. Use o formato (55) 99999-9999 ou (55) 9999-9999.');
       return;
     }
     if (!widget.isEditing && _senhaCtrl.text.trim().length < 6) {
@@ -90,7 +102,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
       actionLabel: widget.isEditing
-          ? 'A edicao de usuarios'
+          ? 'A edição de usuários'
           : 'O cadastro de usuarios',
     );
     if (!canProceed || !mounted) return;
@@ -100,10 +112,8 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     final data = <String, dynamic>{
       'nome': _nomeCtrl.text.trim(),
       'matricula': _matriculaCtrl.text.trim(),
-      'email': _emailCtrl.text.trim(),
-      'telefone': _telefoneCtrl.text.trim().isEmpty
-          ? null
-          : _telefoneCtrl.text.trim(),
+      'email': email,
+      'telefone': telefone.isEmpty ? null : telefone,
       'tipo': _tipo,
       if (widget.isEditing) 'ativo': _ativo,
     };
@@ -318,6 +328,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                       _telefoneCtrl,
                       '(55) 99999-9999',
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [TelefoneInputFormatter()],
                     ),
                     const SizedBox(height: 14),
                     _fieldLabel('Matrícula *'),
@@ -332,7 +343,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
                     _sectionLabel('PERFIL DE ACESSO'),
                     const SizedBox(height: 10),
                     const Text(
-                      'Nesta fase, alteracoes de perfil e status exigem conexao com o servidor.',
+                      'Nesta fase, alterações de perfil e status exigem conexão com o servidor.',
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
@@ -762,6 +773,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
     bool obscureText = false,
     Widget? suffixIcon,
     TextCapitalization textCapitalization = TextCapitalization.sentences,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Container(
       height: 48,
@@ -781,6 +793,7 @@ class _UsuarioFormScreenState extends State<UsuarioFormScreen> {
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
+        inputFormatters: inputFormatters,
         textCapitalization: textCapitalization,
         decoration: InputDecoration(
           hintText: hint,

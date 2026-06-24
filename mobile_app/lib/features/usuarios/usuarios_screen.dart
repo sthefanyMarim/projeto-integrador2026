@@ -105,7 +105,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   Future<void> _openEditForm(UsuarioModel usuario) async {
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
-      actionLabel: 'A edicao de usuarios',
+      actionLabel: 'A edição de usuários',
     );
     if (!canProceed || !mounted) return;
 
@@ -118,7 +118,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   Future<void> _deletar(UsuarioModel u) async {
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
-      actionLabel: 'A exclusao de usuarios',
+      actionLabel: 'A exclusão de usuários',
     );
     if (!canProceed || !mounted) return;
 

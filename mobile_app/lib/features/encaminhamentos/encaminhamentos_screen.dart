@@ -7,7 +7,9 @@ import '../../core/app_refresh_bus.dart';
 import '../../core/app_screen.dart';
 import '../../data/models/encaminhamento_model.dart';
 import '../../data/services/encaminhamento_service.dart';
+import '../../data/services/propriedade_service.dart';
 import '../../data/services/token_service.dart';
+import '../visita/visita_form_options.dart';
 
 class EncaminhamentosScreen extends StatefulWidget {
   const EncaminhamentosScreen({super.key});
@@ -33,28 +35,47 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
   };
 
   late final EncaminhamentoService _service;
+  late final PropriedadeService _propriedadeService;
   String _selectedFilter = 'Todos';
   String? _selectedPropriedade;
   List<EncaminhamentoModel> _tasks = const [];
+  List<String> _availablePropriedades = const [];
   bool _loading = true;
   String? _error;
 
-  List<EncaminhamentoModel> get _displayedTasks => _selectedPropriedade == null
-      ? _tasks
-      : _tasks.where((t) => t.propriedadeNome == _selectedPropriedade).toList();
+  List<EncaminhamentoModel> get _displayedTasks {
+    final filtrados = _selectedPropriedade == null
+        ? _tasks
+        : _tasks.where((t) => t.propriedadeNome == _selectedPropriedade).toList();
+    return [...filtrados]..sort(_compareUrgencia);
+  }
 
-  List<String> get _availablePropriedades {
-    final nomes = _tasks.map((t) => t.propriedadeNome).toSet().toList();
-    nomes.sort();
-    return nomes;
+  static const Map<String, int> _prioridadeRank = {
+    'CRITICA': 0,
+    'ALTA': 1,
+    'MEDIA': 2,
+    'BAIXA': 3,
+  };
+
+  int _compareUrgencia(EncaminhamentoModel a, EncaminhamentoModel b) {
+    final rankA = _prioridadeRank[a.prioridade] ?? 4;
+    final rankB = _prioridadeRank[b.prioridade] ?? 4;
+    if (rankA != rankB) return rankA.compareTo(rankB);
+
+    if (a.prazo == null && b.prazo == null) return 0;
+    if (a.prazo == null) return 1;
+    if (b.prazo == null) return -1;
+    return a.prazo!.compareTo(b.prazo!);
   }
 
   @override
   void initState() {
     super.initState();
     _service = EncaminhamentoService(TokenService());
+    _propriedadeService = PropriedadeService(TokenService());
     AppRefreshBus.notifier.addListener(_handleRefreshBus);
     _loadTasks();
+    _loadPropriedades();
   }
 
   @override
@@ -96,6 +117,17 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
           fallback: 'Não foi possível carregar os encaminhamentos.',
         );
       });
+    }
+  }
+
+  Future<void> _loadPropriedades() async {
+    try {
+      final propriedades = await _propriedadeService.listarAtivas();
+      if (!mounted) return;
+      final nomes = propriedades.map((p) => p.nome).toList()..sort();
+      setState(() => _availablePropriedades = nomes);
+    } catch (_) {
+      // Mantém a lista vazia; o filtro de propriedade simplesmente fica indisponível.
     }
   }
 
@@ -181,7 +213,9 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
                 children: [
                   _buildFilterBar(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  if (!_loading && _error == null) _buildResultCount(),
+                  const SizedBox(height: 8),
                   if (_loading)
                     const Padding(
                       padding: EdgeInsets.only(top: 48),
@@ -465,6 +499,21 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
     );
   }
 
+  Widget _buildResultCount() {
+    final count = _displayedTasks.length;
+    final label = count == 1
+        ? '1 encaminhamento encontrado'
+        : '$count encaminhamentos encontrados';
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted,
+      ),
+    );
+  }
+
   Widget _buildFilterBar() {
     final isStatusFiltered = _selectedFilter != 'Todos';
     final isPropFiltered = _selectedPropriedade != null;
@@ -648,7 +697,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                       Text(
                         task.responsavel == null || task.responsavel!.isEmpty
                             ? 'Responsável não informado'
-                            : 'Responsável: ${task.responsavel}',
+                            : 'Responsável: ${optionLabel(responsavelOptions, task.responsavel, fallback: task.responsavel ?? "")}',
                         style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 12,
@@ -657,7 +706,7 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
                       if (task.verificacaoLabel.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Verificacao: ${task.verificacaoLabel}',
+                          'Verificação: ${task.verificacaoLabel}',
                           style: const TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 12,
@@ -806,15 +855,26 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
   }
 
   Widget _buildEmptyCard() {
+    final String message;
+    if (_selectedPropriedade == null) {
+      message = 'Nenhum encaminhamento encontrado para este filtro.';
+    } else if (_selectedFilter == 'Todos') {
+      message =
+          'A propriedade "$_selectedPropriedade" não possui um histórico de encaminhamento no momento.';
+    } else {
+      message =
+          'A propriedade "$_selectedPropriedade" não possui encaminhamentos "$_selectedFilter" no momento.';
+    }
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Text(
-        'Nenhum encaminhamento encontrado para este filtro.',
-        style: TextStyle(color: AppColors.textSecondary),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: AppColors.textSecondary),
       ),
     );
   }

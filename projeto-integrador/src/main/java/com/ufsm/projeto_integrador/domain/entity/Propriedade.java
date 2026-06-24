@@ -1,10 +1,13 @@
 package com.ufsm.projeto_integrador.domain.entity;
 
 import com.ufsm.projeto_integrador.audit.AuditListener;
+import com.ufsm.projeto_integrador.domain.enums.TipoProducao;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -48,8 +51,10 @@ public class Propriedade implements Serializable {
     @Column(precision = 10, scale = 7)
     private BigDecimal longitude;
 
-    @Column(name = "tipo_producao", length = 100)
-    private String tipoProducao;
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "tipo_producao", columnDefinition = "tipo_producao")
+    private TipoProducao tipoProducao;
 
     @Column(nullable = false)
     @Builder.Default

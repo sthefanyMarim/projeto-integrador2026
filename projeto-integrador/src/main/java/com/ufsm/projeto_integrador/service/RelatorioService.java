@@ -116,7 +116,7 @@ public class RelatorioService {
 
         return new RelatorioPropriedadeResponse(
                 prop.getId(), prop.getNome(), prop.getNomeProprietario(),
-                prop.getMunicipio(), prop.getTipoProducao(),
+                prop.getMunicipio(), prop.getTipoProducao() != null ? prop.getTipoProducao().name() : null,
                 inicio, fim,
                 visitas.size(), visitasPorStatus, visitasPorTipo, listaVisitas,
                 diagnosticos.size(), diagPorCategoria, diagPorCriticidade, listaDiag,

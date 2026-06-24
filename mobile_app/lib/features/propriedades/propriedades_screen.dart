@@ -105,7 +105,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
   Future<void> _openEditForm(PropriedadeModel propriedade) async {
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
-      actionLabel: 'A edicao de propriedades',
+      actionLabel: 'A edição de propriedades',
     );
     if (!canProceed || !mounted) return;
 
@@ -121,7 +121,7 @@ class _PropriedadesScreenState extends State<PropriedadesScreen> {
   Future<void> _excluir(PropriedadeModel p) async {
     final canProceed = await OnlineOnlyGuard.ensureServerReachable(
       context,
-      actionLabel: 'A exclusao de propriedades',
+      actionLabel: 'A exclusão de propriedades',
     );
     if (!canProceed || !mounted) return;
 

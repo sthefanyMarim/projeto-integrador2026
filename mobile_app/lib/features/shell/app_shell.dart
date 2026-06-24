@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_refresh_bus.dart';
+import '../../core/calendar_selection_bus.dart';
 import '../../data/services/app_sync_service.dart';
 import '../../data/services/token_service.dart';
 import '../visita/agendamento_modal.dart';
@@ -115,7 +116,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             content: Text(
               error is StateError
                   ? error.message.toString()
-                  : 'Nao foi possivel sincronizar os dados pendentes.',
+                  : 'Não foi possível sincronizar os dados pendentes.',
             ),
           ),
         );
@@ -147,11 +148,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (!mounted) {
       return;
     }
+
+    final location = GoRouterState.of(context).matchedLocation;
+    final initialDate = location.startsWith('/calendario')
+        ? CalendarSelectionBus.selectedDate.value
+        : null;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AgendamentoModal(),
+      builder: (context) => AgendamentoModal(initialDate: initialDate),
     );
   }
 

@@ -134,15 +134,16 @@ flutter run -d chrome --web-port 5173
 
 ## Docker Compose
 
-O arquivo `projeto-integrador/docker-compose.yml` sobe os servicos locais necessarios para desenvolvimento.
+O arquivo `projeto-integrador/docker-compose.yml` orquestra todos os servicos necessarios para rodar o sistema, tanto em desenvolvimento quanto em implantacao.
 
 | Servico | Container | Porta local | Porta interna | Uso |
 | --- | --- | --- | --- | --- |
+| `api` | `polivisitas-api` | `8080` | `8080` | Backend Spring Boot (buildado a partir do `Dockerfile`) |
 | `postgres` | `polivisitas-postgres` | `5435` | `5432` | Banco PostgreSQL |
-| `pgadmin` | `polivisitas-pgadmin` | `5050` | `80` | Interface web para o PostgreSQL |
+| `pgadmin` | `polivisitas-pgadmin` | `5050` | `80` | Interface web para o PostgreSQL (opcional, so conveniencia de administracao) |
 | `minio` | `polivisitas-minio` | `9000` | `9000` | API S3 local para arquivos |
 | `minio` | `polivisitas-minio` | `9001` | `9001` | Console web do MinIO |
-| `minio-setup` | `polivisitas-minio-setup` | sem porta | sem porta | Cria o bucket `polivisitas-imagens` automaticamente |
+| `minio-setup` | `polivisitas-minio-setup` | sem porta | sem porta | Cria o bucket `polivisitas-imagens` automaticamente (roda uma vez e finaliza) |
 
 URLs dos servicos:
 
@@ -152,6 +153,54 @@ URLs dos servicos:
 | pgAdmin | `http://localhost:5050` |
 | MinIO API | `http://localhost:9000` |
 | MinIO Console | `http://localhost:9001` |
+
+## Deploy
+
+Para implantar o backend completo (API + banco + storage) em um servidor:
+
+```bash
+cd projeto-integrador
+docker compose up -d --build
+```
+
+O `--build` builda a imagem da API a partir do `Dockerfile`. O compose espera os healthchecks do Postgres e do MinIO, cria o bucket automaticamente e so depois inicia a API.
+
+Verificar status:
+
+```bash
+docker compose ps
+docker compose logs -f api
+curl http://localhost:8080/actuator/health
+```
+
+As migrations do Flyway (V1 a V5) rodam automaticamente no startup da API — nao ha passo manual de banco.
+
+### Configuracoes que precisam ser trocadas antes de produção
+
+O compose e os properties atuais usam valores de desenvolvimento hardcoded. Nao suba em produção sem trocar isso:
+
+| O quê | Onde está hoje | Valor atual (dev) | Como trocar |
+| --- | --- | --- | --- |
+| Senha do Postgres | `docker-compose.yml`, servico `postgres` (`POSTGRES_PASSWORD`) e servico `api` (`SPRING_DATASOURCE_PASSWORD`) | `postgres123` | Editar os dois valores no compose (precisam ficar iguais) |
+| Credenciais do MinIO | `docker-compose.yml`, servico `minio` (`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`), servico `api` (`AWS_S3_ACCESS_KEY`/`AWS_S3_SECRET_KEY`) e servico `minio-setup` (comando `mc alias set`) | `minioadmin` / `minioadmin123` | Editar os três pontos (precisam ficar iguais entre si) |
+| URL pública das imagens | `docker-compose.yml`, servico `api` (`AWS_S3_PUBLIC_URL`) | `http://localhost:9000` | Trocar para o domínio/IP real do servidor, senão os links de imagem ficam quebrados pra quem acessa de fora |
+| Segredo do JWT | `application.properties` (`jwt.secret`), hardcoded no código | chave fixa no repo | Adicionar `JWT_SECRET=<valor-novo>` na seção `environment` do servico `api` no compose — o Spring lê a variável de ambiente automaticamente e sobrescreve o properties |
+| Senha do admin bootstrap | `application.properties` (`app.bootstrap.admin.senha`) | `admin123` | Adicionar `APP_BOOTSTRAP_ADMIN_SENHA=<valor-novo>` na seção `environment` do servico `api`, ou trocar a senha pelo próprio sistema após o primeiro login |
+
+> Nota: `application-prod.properties` referencia variáveis como `${DB_URL}`, `${AWS_S3_BUCKET}`, `${AWS_ACCESS_KEY}` — mas o `docker-compose.yml` atual não define essas variáveis com esses nomes. Isso não quebra nada porque as variáveis equivalentes do Spring (`SPRING_DATASOURCE_URL`, `AWS_S3_BUCKET_NAME`, `AWS_S3_ACCESS_KEY`) já são lidas diretamente pelo Spring Boot com prioridade maior que o properties file. Mas é uma inconsistência de nomes — se for editar configuração de banco/S3, edite direto no `docker-compose.yml`, não em `application-prod.properties`.
+
+### Atualizando ou parando uma implantação
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Os dados de Postgres e MinIO ficam em volumes (`postgres_data`, `minio_data`) e não são afetados pelo rebuild. Para parar os serviços sem perder dados:
+
+```bash
+docker compose down
+```
 
 ## Portas da aplicacao
 

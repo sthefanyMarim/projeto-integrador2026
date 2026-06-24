@@ -246,7 +246,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
             const Icon(Icons.error_outline, color: AppColors.error, size: 48),
             const SizedBox(height: 16),
             const Text(
-              'Nao foi possivel carregar os detalhes.',
+              'Não foi possível carregar os detalhes.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -403,7 +403,7 @@ class _VisitaDetalheModalState extends State<VisitaDetalheModal> {
                       children: [
                         Expanded(
                           child: Text(
-                            item.categoria,
+                            optionLabel(temaPrincipalOptions, item.categoria, fallback: item.categoria),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,

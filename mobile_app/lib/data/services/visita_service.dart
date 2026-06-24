@@ -237,7 +237,7 @@ class VisitaService {
       return _offlineDataService.saveOfflineCreatedVisit(
         payload: request.toSyncPayload(),
         usuarioId: userInfo.userId ?? 0,
-        usuarioNome: userInfo.nome ?? 'Usuario logado',
+        usuarioNome: userInfo.nome ?? 'Usuário logado',
         propriedade: propriedade,
       );
     }

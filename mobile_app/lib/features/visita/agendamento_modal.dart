@@ -12,9 +12,10 @@ import '../../data/services/visita_service.dart';
 import 'visita_form_options.dart';
 
 class AgendamentoModal extends StatefulWidget {
-  const AgendamentoModal({super.key, this.visit});
+  const AgendamentoModal({super.key, this.visit, this.initialDate});
 
   final VisitaModel? visit;
+  final DateTime? initialDate;
 
   @override
   State<AgendamentoModal> createState() => _AgendamentoModalState();
@@ -64,6 +65,9 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
   void _prefill() {
     final visit = widget.visit;
     if (visit == null) {
+      if (widget.initialDate != null) {
+        _dataVisita = DateUtils.dateOnly(widget.initialDate!);
+      }
       return;
     }
 
@@ -120,7 +124,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
 
       setState(() {
         _propriedades = propriedades;
-        _nomeTecnico = userInfo.nome ?? 'Usuario logado';
+        _nomeTecnico = userInfo.nome ?? 'Usuário logado';
         _loading = false;
       });
     } catch (error) {
@@ -132,7 +136,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
         _loading = false;
         _error = ApiError.message(
           error,
-          fallback: 'Nao foi possivel carregar os dados do agendamento.',
+          fallback: 'Não foi possível carregar os dados do agendamento.',
         );
       });
       await AppFeedback.apiError(
@@ -340,7 +344,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
                 Text(
                   _editing
                       ? 'Atualize os dados do agendamento.'
-                      : 'Preencha as informacoes para criar a visita.',
+                      : 'Preencha as informações para criar a visita.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
@@ -381,7 +385,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
           border: Border.all(color: AppColors.border),
         ),
         child: const Text(
-          'Nenhuma propriedade ativa foi encontrada. Se voce acabou de entrar no app, aguarde a atualizacao inicial ou conecte-se online para carregar as propriedades.',
+          'Nenhuma propriedade ativa foi encontrada. Se você acabou de entrar no app, aguarde a atualização inicial ou conecte-se online para carregar as propriedades.',
           style: TextStyle(color: AppColors.textSecondary),
         ),
       );
@@ -446,7 +450,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Horario *',
+                      'Horário *',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
@@ -464,11 +468,11 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Tecnico responsavel',
+            'Técnico responsável',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          _readonlyField(_nomeTecnico ?? 'Usuario logado'),
+          _readonlyField(_nomeTecnico ?? 'Usuário logado'),
           const SizedBox(height: 16),
           const Text(
             'Tipo de visita *',
@@ -483,17 +487,21 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
             onChanged: (value) => setState(() => _tipoVisita = value),
           ),
           const SizedBox(height: 16),
-          const Text('Urgencia', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text(
+            'Urgência *',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           _buildOptionDropdown(
             value: _urgencia,
-            hint: 'Selecione a urgencia',
+            hint: 'Selecione a urgência',
             options: urgenciaOptions,
+            validator: (value) => value == null ? 'Escolha a urgência.' : null,
             onChanged: (value) => setState(() => _urgencia = value),
           ),
           const SizedBox(height: 16),
           const Text(
-            'Tema principal',
+            'Tema principal *',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
@@ -501,11 +509,12 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
             value: _temaPrincipal,
             hint: 'Selecione o tema',
             options: temaPrincipalOptions,
+            validator: (value) => value == null ? 'Escolha o tema principal.' : null,
             onChanged: (value) => setState(() => _temaPrincipal = value),
           ),
           const SizedBox(height: 16),
           const Text(
-            'Observacoes',
+            'Observações',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
@@ -532,7 +541,7 @@ class _AgendamentoModalState extends State<AgendamentoModal> {
                 _saving
                     ? 'Salvando...'
                     : _editing
-                    ? 'Salvar Alteracoes'
+                    ? 'Salvar Alterações'
                     : 'Confirmar Agendamento',
                 style: const TextStyle(
                   fontSize: 16,

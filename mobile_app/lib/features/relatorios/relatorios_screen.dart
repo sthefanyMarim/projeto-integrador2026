@@ -8,6 +8,7 @@ import '../../data/models/propriedade_model.dart';
 import '../../data/models/relatorio_model.dart';
 import '../../data/services/relatorio_service.dart';
 import '../../data/services/token_service.dart';
+import '../visita/visita_form_options.dart';
 
 class RelatoriosScreen extends StatefulWidget {
   const RelatoriosScreen({super.key});
@@ -155,7 +156,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
       if (mounted) {
         AppFeedback.error(
           context,
-          message: 'Nao foi possivel exportar o relatorio.',
+          message: 'Não foi possível exportar o relatório.',
         );
       }
     } finally {
@@ -201,8 +202,6 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
     child: child!,
   );
 
-  // ── build ────────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,7 +234,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                     _buildPropContent(_dataProp!)
                   else if (!_modoGeral && _propSelecionada == null)
                     _buildInfoCard(
-                      'Selecione uma propriedade para gerar o relatorio.',
+                      'Selecione uma propriedade para gerar o relatório.',
                     ),
                 ],
               ),
@@ -934,7 +933,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            d.categoria,
+                            optionLabel(temaPrincipalOptions, d.categoria, fallback: d.categoria),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -994,7 +993,7 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
                           ),
                           if (e.responsavel != null)
                             Text(
-                              'Resp: ${e.responsavel}',
+                              'Resp: ${optionLabel(responsavelOptions, e.responsavel, fallback: e.responsavel ?? "")}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textMuted,
@@ -1054,7 +1053,10 @@ class _RelatoriosScreenState extends State<RelatoriosScreen> {
           _infoRow('Proprietário', data.nomeProprietario),
           _infoRow('Município', data.municipio),
           if (data.tipoProducao != null)
-            _infoRow('Tipo de produção', data.tipoProducao!),
+            _infoRow(
+              'Tipo de produção',
+              optionLabel(tipoProducaoOptions, data.tipoProducao),
+            ),
         ],
       ),
     );
