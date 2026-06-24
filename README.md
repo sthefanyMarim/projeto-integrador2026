@@ -187,8 +187,6 @@ O compose e os properties atuais usam valores de desenvolvimento hardcoded. Nao 
 | Segredo do JWT | `application.properties` (`jwt.secret`), hardcoded no código | chave fixa no repo | Adicionar `JWT_SECRET=<valor-novo>` na seção `environment` do servico `api` no compose — o Spring lê a variável de ambiente automaticamente e sobrescreve o properties |
 | Senha do admin bootstrap | `application.properties` (`app.bootstrap.admin.senha`) | `admin123` | Adicionar `APP_BOOTSTRAP_ADMIN_SENHA=<valor-novo>` na seção `environment` do servico `api`, ou trocar a senha pelo próprio sistema após o primeiro login |
 
-> Nota: `application-prod.properties` referencia variáveis como `${DB_URL}`, `${AWS_S3_BUCKET}`, `${AWS_ACCESS_KEY}` — mas o `docker-compose.yml` atual não define essas variáveis com esses nomes. Isso não quebra nada porque as variáveis equivalentes do Spring (`SPRING_DATASOURCE_URL`, `AWS_S3_BUCKET_NAME`, `AWS_S3_ACCESS_KEY`) já são lidas diretamente pelo Spring Boot com prioridade maior que o properties file. Mas é uma inconsistência de nomes — se for editar configuração de banco/S3, edite direto no `docker-compose.yml`, não em `application-prod.properties`.
-
 ### Atualizando ou parando uma implantação
 
 ```bash
