@@ -517,145 +517,182 @@ class _EncaminhamentosScreenState extends State<EncaminhamentosScreen> {
   Widget _buildFilterBar() {
     final isStatusFiltered = _selectedFilter != 'Todos';
     final isPropFiltered = _selectedPropriedade != null;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GestureDetector(
-          onTap: _openFilterModal,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isStatusFiltered ? AppColors.primary : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isStatusFiltered ? Colors.transparent : AppColors.border,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x14000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.tune,
-                  size: 16,
-                  color: isStatusFiltered ? Colors.white : AppColors.textMuted,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isStatusFiltered ? _selectedFilter : 'Status',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isStatusFiltered
-                        ? Colors.white
-                        : AppColors.textSecondary,
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _openFilterModal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
                   ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: isStatusFiltered ? Colors.white : AppColors.textMuted,
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (isStatusFiltered) ...[
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () {
-              setState(() => _selectedFilter = 'Todos');
-              _loadTasks();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
-            ),
-          ),
-        ],
-        const SizedBox(width: 8),
-        GestureDetector(
-          onTap: _availablePropriedades.isEmpty ? null : _openPropriedadeModal,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isPropFiltered ? AppColors.primary : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isPropFiltered ? Colors.transparent : AppColors.border,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x14000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: isPropFiltered ? Colors.white : AppColors.textMuted,
-                ),
-                const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 110),
-                  child: Text(
-                    isPropFiltered ? _selectedPropriedade! : 'Propriedade',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isPropFiltered
-                          ? Colors.white
-                          : AppColors.textSecondary,
+                  decoration: BoxDecoration(
+                    color: isStatusFiltered ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isStatusFiltered
+                          ? Colors.transparent
+                          : AppColors.border,
                     ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x14000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.tune,
+                        size: 16,
+                        color: isStatusFiltered
+                            ? Colors.white
+                            : AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isStatusFiltered ? _selectedFilter : 'Status',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isStatusFiltered
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: isStatusFiltered
+                            ? Colors.white
+                            : AppColors.textMuted,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 16,
-                  color: isPropFiltered ? Colors.white : AppColors.textMuted,
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (isPropFiltered) ...[
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => setState(() => _selectedPropriedade = null),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
             ),
-          ),
-        ],
+            if (isStatusFiltered) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  setState(() => _selectedFilter = 'Todos');
+                  _loadTasks();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _availablePropriedades.isEmpty
+                    ? null
+                    : _openPropriedadeModal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isPropFiltered ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isPropFiltered
+                          ? Colors.transparent
+                          : AppColors.border,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x14000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: isPropFiltered
+                            ? Colors.white
+                            : AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          isPropFiltered
+                              ? _selectedPropriedade!
+                              : 'Propriedade',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isPropFiltered
+                                ? Colors.white
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16,
+                        color: isPropFiltered
+                            ? Colors.white
+                            : AppColors.textMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (isPropFiltered) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => setState(() => _selectedPropriedade = null),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ],
-      ),
     );
   }
 

@@ -25,9 +25,11 @@ class CalendarioScreen extends StatefulWidget {
 
 class _CalendarioScreenState extends State<CalendarioScreen> {
   late final VisitaService _service;
+  late final TokenService _tokenService;
   late DateTime _focusedDay;
   late DateTime _selectedDay;
 
+  int? _currentUserId;
   Map<DateTime, List<VisitaModel>> _eventsByDate = const {};
   bool _loading = true;
   bool _runningAction = false;
@@ -40,7 +42,8 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
     _focusedDay = today;
     _selectedDay = today;
     CalendarSelectionBus.selectedDate.value = today;
-    _service = VisitaService(TokenService());
+    _tokenService = TokenService();
+    _service = VisitaService(_tokenService);
     AppRefreshBus.notifier.addListener(_handleRefreshBus);
     _loadVisits();
   }
@@ -64,11 +67,16 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
     }
 
     try {
+      _currentUserId ??= (await _tokenService.getUserInfo()).userId;
+
       final visits = await _service.listar(size: 500);
       visits.sort(_compareVisits);
 
       final grouped = <DateTime, List<VisitaModel>>{};
       for (final visit in visits) {
+        if (_currentUserId != null && visit.usuarioId != _currentUserId) {
+          continue;
+        }
         final dateKey = DateUtils.dateOnly(visit.dataVisita);
         grouped.putIfAbsent(dateKey, () => <VisitaModel>[]).add(visit);
       }
